@@ -135,7 +135,13 @@ module.exports = function draw(gd) {
 
     computeLegendDimensions(gd, groups, traces);
 
-    if(opts.height > lyMax) {
+    // The height that the legend will eventually be clipped too
+    var displayHeight = opts.height
+    if(opts.maxHeight != null) {
+        displayHeight = Math.min(opts.height, opts.maxHeight)
+    }
+
+    if(displayHeight > lyMax) {
         // If the legend doesn't fit in the plot area,
         // do not expand the vertical margins.
         expandHorizontalMargin(gd);
@@ -181,7 +187,7 @@ module.exports = function draw(gd) {
     // Make sure the legend top and bottom are visible
     // (legends with a scroll bar are not allowed to stretch beyond the extended
     // margins)
-    var legendHeight = opts.height,
+    var legendHeight = displayHeight,
         legendHeightMax = gs.h;
 
     if(legendHeight > legendHeightMax) {
@@ -661,7 +667,8 @@ function computeLegendDimensions(gd, groups, traces) {
 
 function expandMargin(gd) {
     var fullLayout = gd._fullLayout,
-        opts = fullLayout.legend;
+        opts = fullLayout.legend,
+        gs = fullLayout._size;
 
     var xanchor = 'left';
     if(anchorUtils.isRightAnchor(opts)) {
@@ -679,14 +686,20 @@ function expandMargin(gd) {
         yanchor = 'middle';
     }
 
+    // check for vertical clipping
+    var clipHeight = opts.height;
+    if(opts.maxHeight != null) {
+        clipHeight = Math.min(opts.height, opts.maxHeight)
+    }
+
     // lastly check if the margin auto-expand has changed
     Plots.autoMargin(gd, 'legend', {
         x: opts.x,
         y: opts.y,
         l: opts.width * ({right: 1, center: 0.5}[xanchor] || 0),
         r: opts.width * ({left: 1, center: 0.5}[xanchor] || 0),
-        b: opts.height * ({top: 1, middle: 0.5}[yanchor] || 0),
-        t: opts.height * ({bottom: 1, middle: 0.5}[yanchor] || 0)
+        b: clipHeight * ({top: 1, middle: 0.5}[yanchor] || 0),
+        t: clipHeight * ({bottom: 1, middle: 0.5}[yanchor] || 0)
     });
 }
 
