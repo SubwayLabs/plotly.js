@@ -136,12 +136,12 @@ module.exports = function draw(gd) {
     computeLegendDimensions(gd, groups, traces);
 
     // The height that the legend will eventually be clipped too
-    var displayHeight = opts.height
+    var legendHeight = opts.height;
     if(opts.maxHeight != null) {
-        displayHeight = Math.min(opts.height, opts.maxHeight)
+        legendHeight = Math.min(opts.height, opts.maxHeight)
     }
 
-    if(displayHeight > lyMax) {
+    if(legendHeight > lyMax) {
         // If the legend doesn't fit in the plot area,
         // do not expand the vertical margins.
         expandHorizontalMargin(gd);
@@ -187,8 +187,7 @@ module.exports = function draw(gd) {
     // Make sure the legend top and bottom are visible
     // (legends with a scroll bar are not allowed to stretch beyond the extended
     // margins)
-    var legendHeight = displayHeight,
-        legendHeightMax = gs.h;
+    var legendHeightMax = gs.h;
 
     if(legendHeight > legendHeightMax) {
         ly = gs.t;
@@ -667,8 +666,7 @@ function computeLegendDimensions(gd, groups, traces) {
 
 function expandMargin(gd) {
     var fullLayout = gd._fullLayout,
-        opts = fullLayout.legend,
-        gs = fullLayout._size;
+        opts = fullLayout.legend;
 
     var xanchor = 'left';
     if(anchorUtils.isRightAnchor(opts)) {

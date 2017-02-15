@@ -113,6 +113,6 @@ module.exports = {
     maxHeight: {
         valType: 'number',
         role: 'style',
-        description: 'Sets the maximum allowed height (in pixels) of the legend'
+        description: 'Sets the maximum allowed height (in pixels) of the legend.'
     }
 };
