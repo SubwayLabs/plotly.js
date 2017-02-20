@@ -109,5 +109,10 @@ module.exports = {
             'This anchor binds the `y` position to the *top*, *middle*',
             'or *bottom* of the legend.'
         ].join(' ')
+    },
+    maxHeight: {
+        valType: 'number',
+        role: 'style',
+        description: 'Sets the maximum allowed height (in pixels) of the legend.'
     }
 };
