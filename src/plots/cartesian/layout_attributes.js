@@ -435,6 +435,16 @@ module.exports = {
             'If set to *free*, this axis\' position is determined by `position`.'
         ].join(' ')
     },
+    // anchoroffset: used to signal which axes should offset themselves from each other
+    // automatically
+    anchoroffset: {
+        valType: 'boolean',
+        role: 'info',
+        description: [
+            'If set to true and an anchor is present, the axis will be offset by any previous',
+            'axes that share the same letter axis and side.'
+        ].join(' ')
+    },
     // side: not used directly, as values depend on direction
     // values are top, bottom for x axes, and left, right for y
     side: {
