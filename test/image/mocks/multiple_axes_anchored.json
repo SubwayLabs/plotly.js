@@ -95,6 +95,7 @@
     "width": 800,
     "height": 500,
     "xaxis": {
+      "anchoroffset": true,
       "title": "This needs to be here for now",
       "domain": [
         0.2,
@@ -102,6 +103,7 @@
       ]
     },
     "xaxis2": {
+      "anchoroffset": true,
       "title": "This is another one",
       "domain": [
         0.2,
@@ -111,6 +113,7 @@
       "anchor": "y"
     },
     "yaxis": {
+      "anchoroffset": true,
       "tickfont": {
         "color": "#1f77b4"
       },
@@ -146,6 +149,7 @@
         "color": "#d62728"
       },
       "anchor": "x",
+      "anchoroffset": true,
       "side": "right",
       "overlaying": "y"
     },
@@ -158,6 +162,7 @@
         "color": "#9467bd"
       },
       "anchor": "x",
+      "anchoroffset": true,
       "side": "right",
       "position": 0.85,
       "overlaying": "y"
@@ -171,6 +176,7 @@
         "color": "#94a7bd"
       },
       "anchor": "x",
+      "anchoroffset": true,
       "side": "right",
       "position": 0.85,
       "overlaying": "y"
@@ -184,6 +190,7 @@
         "color": "#94674d"
       },
       "anchor": "x",
+      "anchoroffset": true,
       "side": "left",
       "position": 0.85,
       "overlaying": "y"
