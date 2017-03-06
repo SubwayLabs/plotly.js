@@ -1,0 +1,192 @@
+{
+  "data": [
+    {
+      "x": [
+        1,
+        2,
+        3
+      ],
+      "y": [
+        4,
+        5,
+        6
+      ],
+      "name": "yaxis1 data",
+      "type": "scatter"
+    },
+    {
+      "x": [
+        2,
+        3,
+        4
+      ],
+      "y": [
+        40,
+        50,
+        60
+      ],
+      "name": "yaxis2 data",
+      "yaxis": "y2",
+      "type": "scatter"
+    },
+    {
+      "x": [
+        4,
+        5,
+        6
+      ],
+      "y": [
+        40000,
+        50000,
+        60000
+      ],
+      "name": "yaxis3 data",
+      "yaxis": "y3",
+      "type": "scatter"
+    },
+    {
+      "x": [
+        5,
+        6,
+        7
+      ],
+      "y": [
+        400000,
+        500000,
+        600000
+      ],
+      "name": "yaxis4 data",
+      "yaxis": "y4",
+      "type": "scatter"
+    },
+    {
+      "x": [
+        5,
+        6,
+        7
+      ],
+      "y": [
+        400000,
+        500000,
+        600000
+      ],
+      "name": "yaxis5 data",
+      "yaxis": "y4",
+      "type": "scatter"
+    },
+    {
+      "x": [
+        5,
+        6,
+        7
+      ],
+      "y": [
+        400000,
+        500000,
+        600000
+      ],
+      "name": "yaxis6 data",
+      "yaxis": "y4",
+      "type": "scatter"
+    }
+  ],
+  "layout": {
+    "title": "multiple y-axes example",
+    "width": 800,
+    "height": 500,
+    "xaxis": {
+      "title": "This needs to be here for now",
+      "domain": [
+        0.2,
+        0.8
+      ]
+    },
+    "xaxis2": {
+      "title": "This is another one",
+      "domain": [
+        0.2,
+        0.8
+      ],
+      "overlaying": "x",
+      "anchor": "y"
+    },
+    "yaxis": {
+      "tickfont": {
+        "color": "#1f77b4"
+      },
+      "titlefont": {
+        "color": "#1f77b4"
+      },
+      "title": "yaxis title",
+      "domain": [
+        0.1,
+        1
+      ]
+    },
+    "yaxis2": {
+      "title": "yaxis2 title",
+      "titlefont": {
+        "color": "#ff7f0e"
+      },
+      "tickfont": {
+        "color": "#ff7f0e"
+      },
+      "anchor": "x",
+      "anchoroffset": true,
+      "side": "left",
+      "position": 0.15,
+      "overlaying": "y"
+    },
+    "yaxis3": {
+      "title": "yaxis3 title",
+      "titlefont": {
+        "color": "#d62728"
+      },
+      "tickfont": {
+        "color": "#d62728"
+      },
+      "anchor": "x",
+      "side": "right",
+      "overlaying": "y"
+    },
+    "yaxis4": {
+      "title": "yaxis4 title",
+      "titlefont": {
+        "color": "#9467bd"
+      },
+      "tickfont": {
+        "color": "#9467bd"
+      },
+      "anchor": "x",
+      "side": "right",
+      "position": 0.85,
+      "overlaying": "y"
+    },
+    "yaxis5": {
+      "title": "yaxis5 title",
+      "titlefont": {
+        "color": "#94a7bd"
+      },
+      "tickfont": {
+        "color": "#94a7bd"
+      },
+      "anchor": "x",
+      "side": "right",
+      "position": 0.85,
+      "overlaying": "y"
+    },
+    "yaxis6": {
+      "title": "yaxis6 title",
+      "titlefont": {
+        "color": "#94674d"
+      },
+      "tickfont": {
+        "color": "#94674d"
+      },
+      "anchor": "x",
+      "side": "left",
+      "position": 0.85,
+      "overlaying": "y"
+    }
+  }
+}
