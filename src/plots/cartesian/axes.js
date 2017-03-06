@@ -1864,7 +1864,19 @@ axes.doTicks = function(gd, axid, skipTitle) {
         }
 
         function calcBoundingBox() {
-            ax._boundingBox = container.node().getBoundingClientRect();
+            // This is a bit of a hack to get the title element
+            var titleBox = fullLayout._infolayer.select('.g-' + ax._id + 'title').node().getBoundingClientRect();
+
+            var axisBox = container.node().getBoundingClientRect();
+            var comboBox = {
+                top: Math.min(titleBox.top, axisBox.top),
+                bottom: Math.max(titleBox.bottom, axisBox.bottom),
+                left: Math.min(titleBox.left, axisBox.left),
+                right: Math.max(titleBox.right, axisBox.right)
+            };
+            comboBox.width = comboBox.right - comboBox.left;
+            comboBox.height = comboBox.bottom - comboBox.top;
+            ax._boundingBox = comboBox;
         }
 
         var done = Lib.syncOrAsync([
@@ -1921,6 +1933,8 @@ axes.doTicks = function(gd, axid, skipTitle) {
                 y += (fullLayout.height - fullLayout.margin.b - fullLayout.margin.t) *
                     ax.rangeslider.thickness + ax._boundingBox.height;
             }
+            // Shift the title over to match the anchor offset
+            y += isNumeric(ax._anchorOffset) ? ax._anchorOffset : 0;
 
             if(!avoid.side) avoid.side = 'bottom';
         }
@@ -1934,6 +1948,9 @@ axes.doTicks = function(gd, axid, skipTitle) {
                 counterAxis._length + 10 +
                     fontSize * (offsetBase + (ax.showticklabels ? 1 : 0.5)) :
                 -10 - fontSize * (offsetBase + (ax.showticklabels ? 0.5 : 0)));
+
+            // Shift the title over to match the anchor offset
+            x += isNumeric(ax._anchorOffset) ? ax._anchorOffset : 0;
 
             transform = {rotate: '-90', offset: 0};
             if(!avoid.side) avoid.side = 'left';
@@ -2054,9 +2071,38 @@ axes.doTicks = function(gd, axid, skipTitle) {
                 }
             });
 
+            // Now we calculate offsets for stacking groups of anchored axes
+            if (ax.anchoroffset) {
+
+                var offsetKey = axletter === 'y' ? 'width' : 'height';
+
+                // Get all of the axes that share an orientation, anchor, and side
+                var priors = axes.list(gd, axletter, true).filter(function (axis) {
+                    return ax.anchoroffset && axis._id !== ax._id && axis.anchor === ax.anchor &&
+                        axis.side === ax.side && isNumeric(axis._anchorIndex);
+                }).sort(function (a,b) {return a._anchorIndex - b._anchorIndex;});
+
+                // If we have been placed at an index before, only check up to that index
+                var checkDepth = isNumeric(ax._anchorIndex) ? ax._anchorIndex : priors.length
+
+                // We check indexes to see if we need to offset by prior axes
+                var nextIndex = 0;
+                var nextOffset = 0;
+                for(var i = 0; i < checkDepth; i++) {
+                    if(priors[i]._anchorIndex === i) {
+                        nextIndex = i + 1;
+                        nextOffset += priors[i]._boundingBox[offsetKey] + pad
+                    }
+                }
+                // Set the anchor index and offset for this axis, depending on the side
+                ax._anchorIndex = nextIndex;
+                var offsetDirection = (ax.side === 'right' || ax.side === 'bottom') ? 1 : -1;
+                ax._anchorOffset = nextOffset * offsetDirection;
+            }
+
             drawTicks(container, tickpath);
             drawGrid(plotinfo, counteraxis, subplot);
-            return drawLabels(container, linepositions[3]);
+            return drawLabels(container, linepositions[3] + ax._anchorOffset);
         }).filter(function(onedone) { return onedone && onedone.then; });
 
         return alldone.length ? Promise.all(alldone) : 0;

@@ -28,7 +28,12 @@ module.exports = function handlePositionDefaults(containerIn, containerOut, coer
         }
     }, 'anchor');
 
-    if(anchor === 'free') coerce('position');
+    if(anchor === 'free') {
+        coerce('position');
+    }
+    else {
+        coerce('anchoroffset');
+    }
 
     Lib.coerce(containerIn, containerOut, {
         side: {
