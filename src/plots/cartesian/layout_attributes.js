@@ -354,6 +354,15 @@ module.exports = {
             '*%H~%M~%S.%2f* would display *09~15~23.46*'
         ].join(' ')
     },
+    numberformatter: {
+        valType: 'any',
+        dflt: null,
+        role: 'style',
+        description: [
+            'Supply a custom formatting function for numeric tick labels on',
+            'linear and log plots'
+        ].join(' ')
+    },
     // lines and grids
     showline: {
         valType: 'boolean',

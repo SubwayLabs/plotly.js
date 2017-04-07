@@ -1270,6 +1270,9 @@ function formatLinear(ax, out, hover, extraPrecision, hideexp) {
 var SIPREFIXES = ['f', 'p', 'n', 'μ', 'm', '', 'k', 'M', 'G', 'T'];
 
 function numFormat(v, ax, fmtoverride, hover) {
+    if (ax.numberformatter) {
+        return ax.numberformatter(v, ax)
+    }
         // negative?
     var isNeg = v < 0,
         // max number of digits past decimal point to show
