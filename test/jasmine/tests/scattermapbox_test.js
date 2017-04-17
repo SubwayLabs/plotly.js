@@ -7,13 +7,22 @@ var convert = require('@src/traces/scattermapbox/convert');
 
 var createGraphDiv = require('../assets/create_graph_div');
 var destroyGraphDiv = require('../assets/destroy_graph_div');
-var hasWebGLSupport = require('../assets/has_webgl_support');
 var customMatchers = require('../assets/custom_matchers');
 
-Plotly.setPlotConfig({
-    mapboxAccessToken: require('@build/credentials.json').MAPBOX_ACCESS_TOKEN
-});
+var mouseEvent = require('../assets/mouse_event');
+var click = require('../assets/click');
+var HOVERMINTIME = require('@src/plots/cartesian/constants').HOVERMINTIME;
 
+function move(fromX, fromY, toX, toY, delay) {
+    return new Promise(function(resolve) {
+        mouseEvent('mousemove', fromX, fromY);
+
+        setTimeout(function() {
+            mouseEvent('mousemove', toX, toY);
+            resolve();
+        }, delay || HOVERMINTIME + 10);
+    });
+}
 
 describe('scattermapbox defaults', function() {
     'use strict';
@@ -98,143 +107,6 @@ describe('scattermapbox defaults', function() {
     });
 });
 
-describe('scattermapbox calc', function() {
-    'use strict';
-
-    function _calc(trace) {
-        var gd = { data: [trace] };
-
-        Plots.supplyDefaults(gd);
-
-        var fullTrace = gd._fullData[0];
-        return ScatterMapbox.calc(gd, fullTrace);
-    }
-
-    var base = { type: 'scattermapbox' };
-
-    it('should place lon/lat data in lonlat pairs', function() {
-        var calcTrace = _calc(Lib.extendFlat({}, base, {
-            lon: [10, 20, 30],
-            lat: [20, 30, 10]
-        }));
-
-        expect(calcTrace).toEqual([
-            { lonlat: [10, 20] },
-            { lonlat: [20, 30] },
-            { lonlat: [30, 10] }
-        ]);
-    });
-
-    it('should coerce numeric strings lon/lat data into numbers', function() {
-        var calcTrace = _calc(Lib.extendFlat({}, base, {
-            lon: [10, 20, '30', '40'],
-            lat: [20, '30', 10, '50']
-        }));
-
-        expect(calcTrace).toEqual([
-            { lonlat: [10, 20] },
-            { lonlat: [20, 30] },
-            { lonlat: [30, 10] },
-            { lonlat: [40, 50] }
-        ]);
-    });
-
-    it('should keep track of gaps in data', function() {
-        var calcTrace = _calc(Lib.extendFlat({}, base, {
-            lon: [null, 10, null, null, 20, '30', null, '40', null, 10],
-            lat: [10, 20, '30', null, 10, '50', null, 60, null, null]
-        }));
-
-        expect(calcTrace).toEqual([
-            { lonlat: [10, 20], gapAfter: true },
-            { lonlat: [20, 10] },
-            { lonlat: [30, 50], gapAfter: true },
-            { lonlat: [40, 60], gapAfter: true }
-        ]);
-    });
-
-    it('should fill array text (base case)', function() {
-        var calcTrace = _calc(Lib.extendFlat({}, base, {
-            lon: [10, 20, 30],
-            lat: [20, 30, 10],
-            text: ['A', 'B', 'C']
-        }));
-
-        expect(calcTrace).toEqual([
-            { lonlat: [10, 20], tx: 'A' },
-            { lonlat: [20, 30], tx: 'B' },
-            { lonlat: [30, 10], tx: 'C' }
-        ]);
-    });
-
-    it('should fill array text (invalid entry case)', function() {
-        var calcTrace = _calc(Lib.extendFlat({}, base, {
-            lon: [10, 20, 30],
-            lat: [20, 30, 10],
-            text: ['A', 'B', null]
-        }));
-
-        expect(calcTrace).toEqual([
-            { lonlat: [10, 20], tx: 'A' },
-            { lonlat: [20, 30], tx: 'B' },
-            { lonlat: [30, 10], tx: '' }
-        ]);
-    });
-
-    it('should fill array marker attributes (base case)', function() {
-        var calcTrace = _calc(Lib.extendFlat({}, base, {
-            lon: [10, 20, null, 30],
-            lat: [20, 30, null, 10],
-            marker: {
-                color: ['red', 'blue', 'green', 'yellow'],
-                size: [10, 20, 8, 10]
-            }
-        }));
-
-        expect(calcTrace).toEqual([
-            { lonlat: [10, 20], mc: 'red', ms: 10, mcc: 'red', mrc: 5 },
-            { lonlat: [20, 30], mc: 'blue', ms: 20, mcc: 'blue', mrc: 10, gapAfter: true },
-            { lonlat: [30, 10], mc: 'yellow', ms: 10, mcc: 'yellow', mrc: 5 }
-        ]);
-    });
-
-    it('should fill array marker attributes (invalid scale case)', function() {
-        var calcTrace = _calc(Lib.extendFlat({}, base, {
-            lon: [10, 20, null, 30],
-            lat: [20, 30, null, 10],
-            marker: {
-                color: [0, null, 5, 10],
-                size: [10, NaN, 8, 10],
-                colorscale: [
-                    [0, 'blue'], [0.5, 'red'], [1, 'green']
-                ]
-            }
-        }));
-
-        expect(calcTrace).toEqual([
-            { lonlat: [10, 20], mc: 0, ms: 10, mcc: 'rgb(0, 0, 255)', mrc: 5 },
-            { lonlat: [20, 30], mc: null, ms: NaN, mcc: '#444', mrc: 0, gapAfter: true },
-            { lonlat: [30, 10], mc: 10, ms: 10, mcc: 'rgb(0, 128, 0)', mrc: 5 }
-        ]);
-    });
-
-    it('should fill marker attributes (symbol case)', function() {
-        var calcTrace = _calc(Lib.extendFlat({}, base, {
-            lon: [10, 20, null, 30],
-            lat: [20, 30, null, 10],
-            marker: {
-                symbol: ['monument', 'music', 'harbor', null]
-            }
-        }));
-
-        expect(calcTrace).toEqual([
-            { lonlat: [10, 20], mx: 'monument' },
-            { lonlat: [20, 30], mx: 'music', gapAfter: true },
-            { lonlat: [30, 10], mx: 'circle' }
-        ]);
-    });
-});
-
 describe('scattermapbox convert', function() {
     'use strict';
 
@@ -259,7 +131,7 @@ describe('scattermapbox convert', function() {
         lat: [20, 20, '10', null, 10, 10, 20]
     };
 
-    it('for markers + circle bubbles traces, should', function() {
+    it('should generate correct output for markers + circle bubbles traces', function() {
         var opts = _convert(Lib.extendFlat({}, base, {
             mode: 'markers',
             marker: {
@@ -276,12 +148,12 @@ describe('scattermapbox convert', function() {
             stops: [
                 [0, 'rgb(220, 220, 220)'], [1, '#444'], [2, 'rgb(178, 10, 28)']
             ]
-        }, 'have correct circle-color stops');
+        }, 'circle-color stops');
 
         expect(opts.circle.paint['circle-radius']).toEqual({
             property: 'circle-radius',
             stops: [ [0, 5], [1, 10], [2, 0] ]
-        }, 'have correct circle-radius stops');
+        }, 'circle-radius stops');
 
         var circleProps = opts.circle.geojson.features.map(function(f) {
             return f.properties;
@@ -294,10 +166,10 @@ describe('scattermapbox convert', function() {
             { 'circle-color': 2, 'circle-radius': 2 },
             { 'circle-color': 1, 'circle-radius': 2 },
             { 'circle-color': 1, 'circle-radius': 2 }
-        ], 'have correct geojson feature properties');
+        ], 'geojson feature properties');
     });
 
-    it('fill + markers + lines traces, should', function() {
+    it('should generate correct output for fill + markers + lines traces', function() {
         var opts = _convert(Lib.extendFlat({}, base, {
             mode: 'markers+lines',
             marker: { symbol: 'circle' },
@@ -312,8 +184,8 @@ describe('scattermapbox convert', function() {
         var lineCoords = [segment1, segment2],
             fillCoords = [[segment1], [segment2]];
 
-        expect(opts.line.geojson.coordinates).toEqual(lineCoords, 'have correct line coords');
-        expect(opts.fill.geojson.coordinates).toEqual(fillCoords, 'have correct fill coords');
+        expect(opts.line.geojson.coordinates).toEqual(lineCoords, 'line coords');
+        expect(opts.fill.geojson.coordinates).toEqual(fillCoords, 'fill coords');
 
         var circleCoords = opts.circle.geojson.features.map(function(f) {
             return f.geometry.coordinates;
@@ -321,10 +193,10 @@ describe('scattermapbox convert', function() {
 
         expect(circleCoords).toEqual([
             [10, 20], [20, 20], [30, 10], [20, 10], [10, 20]
-        ], 'have correct circle coords');
+        ], 'circle coords');
     });
 
-    it('for markers + non-circle traces, should', function() {
+    it('should generate correct output for markers + non-circle traces', function() {
         var opts = _convert(Lib.extendFlat({}, base, {
             mode: 'markers',
             marker: { symbol: 'monument' }
@@ -340,10 +212,10 @@ describe('scattermapbox convert', function() {
             return ['monument', ''];
         });
 
-        expect(symbolProps).toEqual(expected, 'have correct geojson properties');
+        expect(symbolProps).toEqual(expected, 'geojson properties');
     });
 
-    it('for text + lines traces, should', function() {
+    it('should generate correct output for text + lines traces', function() {
         var opts = _convert(Lib.extendFlat({}, base, {
             mode: 'lines+text',
             connectgaps: true,
@@ -356,13 +228,30 @@ describe('scattermapbox convert', function() {
             [10, 20], [20, 20], [30, 10], [20, 10], [10, 20]
         ];
 
-        expect(opts.line.geojson.coordinates).toEqual(lineCoords, 'have correct line coords');
+        expect(opts.line.geojson.coordinates).toEqual(lineCoords, 'line coords');
 
         var actualText = opts.symbol.geojson.features.map(function(f) {
             return f.properties.text;
         });
 
-        expect(actualText).toEqual(['A', 'B', 'C', 'F', '']);
+        expect(actualText).toEqual(['A', 'B', 'C', 'F', undefined]);
+    });
+
+    it('should generate correct output for lines traces with trailing gaps', function() {
+        var opts = _convert(Lib.extendFlat({}, base, {
+            mode: 'lines',
+            lon: [10, '20', 30, 20, null, 20, 10, null, null],
+            lat: [20, 20, '10', null, 10, 10, 20, null]
+        }));
+
+        assertVisibility(opts, ['none', 'visible', 'none', 'none']);
+
+        var lineCoords = [
+            [[10, 20], [20, 20], [30, 10]],
+            [[20, 10], [10, 20]]
+        ];
+
+        expect(opts.line.geojson.coordinates).toEqual(lineCoords, 'have correct line coords');
     });
 
     it('should correctly convert \'textposition\' to \'text-anchor\' and \'text-offset\'', function() {
@@ -395,7 +284,7 @@ describe('scattermapbox convert', function() {
         });
     });
 
-    it('for markers + circle bubbles traces with repeated values, should', function() {
+    it('should generate correct output for markers + circle bubbles traces with repeated values', function() {
         var opts = _convert(Lib.extendFlat({}, base, {
             lon: ['-96.796988', '-81.379236', '-85.311819', ''],
             lat: ['32.776664', '28.538335', '35.047157', '' ],
@@ -403,7 +292,7 @@ describe('scattermapbox convert', function() {
         }));
 
         expect(opts.circle.paint['circle-radius'].stops)
-            .toBeCloseTo2DArray([[0, 2.5], [1, 24.5]], 'not replicate stops');
+            .toBeCloseTo2DArray([[0, 2.5], [1, 24.5]], 'no replicate stops');
 
         var radii = opts.circle.geojson.features.map(function(f) {
             return f.properties['circle-radius'];
@@ -412,7 +301,7 @@ describe('scattermapbox convert', function() {
         expect(radii).toBeCloseToArray([0, 1, 0], 'link features to correct stops');
     });
 
-    it('for input only blank pts', function() {
+    it('should generate correct output for traces with only blank points', function() {
         var opts = _convert(Lib.extendFlat({}, base, {
             mode: 'lines',
             lon: ['', null],
@@ -420,10 +309,12 @@ describe('scattermapbox convert', function() {
             fill: 'toself'
         }));
 
-        assertVisibility(opts, ['none', 'none', 'none', 'none']);
+        // not optimal, but doesn't break anything as mapbox-gl accepts empty
+        // coordinate arrays
+        assertVisibility(opts, ['visible', 'visible', 'none', 'none']);
 
-        expect(opts.line.geojson.coordinates).toEqual([], 'have correct line coords');
-        expect(opts.fill.geojson.coordinates).toEqual([], 'have correct fill coords');
+        expect(opts.line.geojson.coordinates).toEqual([], 'line coords');
+        expect(opts.fill.geojson.coordinates).toEqual([], 'fill coords');
     });
 
     function assertVisibility(opts, expectations) {
@@ -431,16 +322,12 @@ describe('scattermapbox convert', function() {
             return opts[l].layout.visibility;
         });
 
-        var msg = 'set layer visibility properly';
-
-        expect(actual).toEqual(expectations, msg);
+        expect(actual).toEqual(expectations, 'layer visibility');
     }
 });
 
-describe('scattermapbox hover', function() {
+describe('@noCI scattermapbox hover', function() {
     'use strict';
-
-    if(!hasWebGLSupport('scattermapbox hover')) return;
 
     var hoverPoints = ScatterMapbox.hoverPoints;
 
@@ -448,6 +335,10 @@ describe('scattermapbox hover', function() {
 
     beforeAll(function(done) {
         jasmine.addMatchers(customMatchers);
+
+        Plotly.setPlotConfig({
+            mapboxAccessToken: require('@build/credentials.json').MAPBOX_ACCESS_TOKEN
+        });
 
         gd = createGraphDiv();
 
@@ -576,7 +467,7 @@ describe('scattermapbox hover', function() {
         });
     });
 
-    it('should generate hover label info (hoverinfo: \'text\' case)', function(done) {
+    it('should generate hover label info (hoverinfo: \'text\' + \'text\' array case)', function(done) {
         Plotly.restyle(gd, 'hoverinfo', 'text').then(function() {
             var xval = 11,
                 yval = 11;
@@ -585,6 +476,223 @@ describe('scattermapbox hover', function() {
 
             expect(out.extraText).toEqual('A');
             done();
+        });
+    });
+
+    it('should generate hover label info (hoverinfo: \'text\' + \'hovertext\' array case)', function(done) {
+        Plotly.restyle(gd, 'hovertext', ['Apple', 'Banana', 'Orange']).then(function() {
+            var xval = 11,
+                yval = 11;
+
+            var out = hoverPoints(getPointData(gd), xval, yval)[0];
+
+            expect(out.extraText).toEqual('Apple');
+            done();
+        });
+    });
+});
+
+
+describe('@noCI Test plotly events on a scattermapbox plot:', function() {
+    var mock = require('@mocks/mapbox_0.json');
+
+    var mockCopy, gd;
+
+    var blankPos = [10, 10],
+        pointPos,
+        nearPos;
+
+    function getPointData(gd) {
+        var cd = gd.calcdata,
+            mapbox = gd._fullLayout.mapbox._subplot;
+
+        return {
+            index: false,
+            distance: 20,
+            cd: cd[0],
+            trace: cd[0][0].trace,
+            xa: mapbox.xaxis,
+            ya: mapbox.yaxis
+        };
+    }
+
+    beforeAll(function(done) {
+        jasmine.addMatchers(customMatchers);
+
+        Plotly.setPlotConfig({
+            mapboxAccessToken: require('@build/credentials.json').MAPBOX_ACCESS_TOKEN
+        });
+
+        gd = createGraphDiv();
+        mockCopy = Lib.extendDeep({}, mock);
+
+        Plotly.plot(gd, mockCopy.data, mockCopy.layout).then(function() {
+            var bb = gd._fullLayout.mapbox._subplot.div.getBoundingClientRect(),
+                xval = 10,
+                yval = 10,
+                point = ScatterMapbox.hoverPoints(getPointData(gd), xval, yval)[0];
+            pointPos = [Math.floor(bb.left + (point.x0 + point.x1) / 2),
+                Math.floor(bb.top + (point.y0 + point.y1) / 2)];
+            nearPos = [pointPos[0] - 30, pointPos[1] - 30];
+        }).then(destroyGraphDiv).then(done);
+    });
+
+    beforeEach(function() {
+        gd = createGraphDiv();
+        mockCopy = Lib.extendDeep({}, mock);
+    });
+
+    afterEach(destroyGraphDiv);
+
+    describe('click events', function() {
+        var futureData;
+
+        beforeEach(function(done) {
+            Plotly.plot(gd, mockCopy.data, mockCopy.layout).then(done);
+
+            gd.on('plotly_click', function(data) {
+                futureData = data;
+            });
+        });
+
+        it('should not be trigged when not on data points', function() {
+            click(blankPos[0], blankPos[1]);
+            expect(futureData).toBe(undefined);
+        });
+
+        it('should contain the correct fields', function() {
+            click(pointPos[0], pointPos[1]);
+
+            var pt = futureData.points[0],
+                evt = futureData.event;
+
+            expect(Object.keys(pt)).toEqual([
+                'data', 'fullData', 'curveNumber', 'pointNumber', 'lon', 'lat'
+            ]);
+
+            expect(pt.curveNumber).toEqual(0, 'points[0].curveNumber');
+            expect(typeof pt.data).toEqual(typeof {}, 'points[0].data');
+            expect(typeof pt.fullData).toEqual(typeof {}, 'points[0].fullData');
+            expect(pt.lat).toEqual(undefined, 'points[0].lat');
+            expect(pt.lon).toEqual(undefined, 'points[0].lon');
+            expect(pt.pointNumber).toEqual(0, 'points[0].pointNumber');
+
+            expect(evt.clientX).toEqual(pointPos[0], 'event.clientX');
+            expect(evt.clientY).toEqual(pointPos[1], 'event.clientY');
+        });
+    });
+
+    describe('modified click events', function() {
+        var clickOpts = {
+                altKey: true,
+                ctrlKey: true,
+                metaKey: true,
+                shiftKey: true
+            },
+            futureData;
+
+        beforeEach(function(done) {
+            Plotly.plot(gd, mockCopy.data, mockCopy.layout).then(done);
+
+            gd.on('plotly_click', function(data) {
+                futureData = data;
+            });
+        });
+
+        it('should not be trigged when not on data points', function() {
+            click(blankPos[0], blankPos[1], clickOpts);
+            expect(futureData).toBe(undefined);
+        });
+
+        it('should contain the correct fields', function() {
+            click(pointPos[0], pointPos[1], clickOpts);
+
+            var pt = futureData.points[0],
+                evt = futureData.event;
+
+            expect(Object.keys(pt)).toEqual([
+                'data', 'fullData', 'curveNumber', 'pointNumber', 'lon', 'lat'
+            ]);
+
+            expect(pt.curveNumber).toEqual(0, 'points[0].curveNumber');
+            expect(typeof pt.data).toEqual(typeof {}, 'points[0].data');
+            expect(typeof pt.fullData).toEqual(typeof {}, 'points[0].fullData');
+            expect(pt.lat).toEqual(undefined, 'points[0].lat');
+            expect(pt.lon).toEqual(undefined, 'points[0].lon');
+            expect(pt.pointNumber).toEqual(0, 'points[0].pointNumber');
+
+            expect(evt.clientX).toEqual(pointPos[0], 'event.clientX');
+            expect(evt.clientY).toEqual(pointPos[1], 'event.clientY');
+            Object.getOwnPropertyNames(clickOpts).forEach(function(opt) {
+                expect(evt[opt]).toEqual(clickOpts[opt], 'event.' + opt);
+            });
+        });
+    });
+
+    describe('hover events', function() {
+        var futureData;
+
+        beforeEach(function(done) {
+            Plotly.plot(gd, mockCopy.data, mockCopy.layout).then(done);
+
+            gd.on('plotly_hover', function(data) {
+                futureData = data;
+            });
+        });
+
+        it('should contain the correct fields', function() {
+            mouseEvent('mousemove', blankPos[0], blankPos[1]);
+            mouseEvent('mousemove', pointPos[0], pointPos[1]);
+
+            var pt = futureData.points[0],
+                evt = futureData.event;
+
+            expect(Object.keys(pt)).toEqual([
+                'data', 'fullData', 'curveNumber', 'pointNumber', 'lon', 'lat'
+            ]);
+
+            expect(pt.curveNumber).toEqual(0, 'points[0].curveNumber');
+            expect(typeof pt.data).toEqual(typeof {}, 'points[0].data');
+            expect(typeof pt.fullData).toEqual(typeof {}, 'points[0].fullData');
+            expect(pt.lat).toEqual(undefined, 'points[0].lat');
+            expect(pt.lon).toEqual(undefined, 'points[0].lon');
+            expect(pt.pointNumber).toEqual(0, 'points[0].pointNumber');
+
+            expect(evt.clientX).toEqual(pointPos[0], 'event.clientX');
+            expect(evt.clientY).toEqual(pointPos[1], 'event.clientY');
+        });
+    });
+
+    describe('unhover events', function() {
+        var futureData;
+
+        beforeEach(function(done) {
+            Plotly.plot(gd, mockCopy.data, mockCopy.layout).then(done);
+
+            gd.on('plotly_unhover', function(data) {
+                futureData = data;
+            });
+        });
+
+        it('should contain the correct fields', function(done) {
+            move(pointPos[0], pointPos[1], nearPos[0], nearPos[1], HOVERMINTIME + 10).then(function() {
+                var pt = futureData.points[0],
+                    evt = futureData.event;
+
+                expect(Object.keys(pt)).toEqual([
+                    'data', 'fullData', 'curveNumber', 'pointNumber', 'lon', 'lat'
+                ]);
+
+                expect(pt.curveNumber).toEqual(0, 'points[0].curveNumber');
+                expect(typeof pt.data).toEqual(typeof {}, 'points[0].data');
+                expect(typeof pt.fullData).toEqual(typeof {}, 'points[0].fullData');
+                expect(pt.lat).toEqual(undefined, 'points[0].lat');
+                expect(pt.lon).toEqual(undefined, 'points[0].lon');
+                expect(pt.pointNumber).toEqual(0, 'points[0].pointNumber');
+
+                expect(evt.clientX).toEqual(nearPos[0], 'event.clientX');
+                expect(evt.clientY).toEqual(nearPos[1], 'event.clientY');
+            }).then(done);
         });
     });
 });

@@ -10,7 +10,152 @@ https://github.com/plotly/plotly.js/compare/vX.Y.Z...master
 where X.Y.Z is the semver of most recent plotly.js release.
 
 
-## [1.22.0] -- 2016-01-19
+## [1.25.2] -- 2017-03-31
+
+### Fixed
+- rm `const` token from dist bundles that depend on `big-rat`,
+  see https://github.com/rat-nest/big-rat/pull/4 for more details.
+
+
+## [1.25.1] -- 2017-03-28
+
+### Fixed
+- Fix `restyle` for `scattergl` traces with array `marker.size` (bug introduced
+  in `1.25.0`) [#1521]
+- Fix `relayout` for `histogram2dcontour` traces [#1520]
+- Do not unnecessary mutate `parcoords` full trace objects when computing
+  line color and colorscale [#1509, #1508]
+- Do not unnecessary coerce trace opacity in `parcoords` traces [#1506]
+
+
+## [1.25.0] -- 2017-03-20
+
+### Added
+- Double click handler on legend items to isolate 1 traces / group on graph
+  [#1432]
+
+### Changed
+- Use signed distance fields (SDF) method to render heterogeneous `scattergl`
+  traces improving performance [#1398]
+- Improve first-render performance in `scattergl` traces by only creating
+  visible objects [#1444]
+- Use `color-rgba` instead of `tinycolor2` to convert plotly color definitions to
+  WebGL buffers improving performance for gl3d and gl2d traces [#1443]
+- Bump `uglify-js` minifier to version `2.8.12` [#1450]
+
+### Fixed
+- Fix 3D trace ordering on visibility toggle [#1466]
+- Fix gl2d trace ordering on visibility toggle [#1444]
+- Fix autorange routine for bar traces [#1475]
+- Fix shapes and images referencing a missing subplot [#1481]
+- Ensure array attributes can be restyled in all situations [#1488]
+- Fix XYZ-column-to-2D-z convert routine for columns containing nulls [#1491]
+- Fix range slider display when anchored to log axes [#1472]
+- Make sure all trace types can be deleted from range sliders [#1472]
+- Let the `parcoords` object tree be garbage collected on `restyle` [#1479]
+- Bring back support for histogram colorscales (bug introduced in `1.21.3`)
+  [#1500]
+- Support all axis types for clicktoshow annotations [#1497]
+- Fix 3D margin relayout calls (bug introduced in `1.24.1`) [#1494]
+- Fix `relayout` when trying to update empty axis containers (bug introduced in
+  `1.24.0`) [#1494]
+
+
+## [1.24.2] -- 2017-03-10
+
+### Fixed
+- Fix removal of last annotation or shape [#1451]
+- Fix shape and image clip path removal [#1453]
+- Fix overdrawing of data-referenced images [#1453]
+- Make handling of `layer: 'below'` shape more robust [#1453]
+- Allow multiple `parcoords` dimensions with the same label [#1457]
+
+
+## [1.24.1] -- 2017-03-07
+
+### Fixed
+- Ensure that calling restyle or relayout in a `plotly_unhover` handler does not
+  result in an infinite loop (bug introduced in 1.24.0) [#1448]
+- Ensure autorange routine is bypassed when axis range is set (bug introduced in
+  1.24.0) [#1425]
+- Fix annotations dragging in editable mode (bug introduced in 1.22.0) [#1441]
+- Show correct curve number in gl2d hover data [#1427]
+- Clear parcoords canvas specially if no panel exist [#1440]
+- Fix parcoords to render last block increment [#1447]
+- Axis refs in hover data are not plagued by circular references [#1431]
+
+
+## [1.24.0] -- 2017-02-27
+
+### Added
+- Add `parcoords` trace type (parallel coordinate plots) [#1256]
+- Add support for multiple range sliders [#1355]
+- Add `'aitoff'` and `'sinusoidal'` geo projection types [#1422]
+- Implement `scene.dragmode: false` to disable drag interaction on 3D subplots
+  [#1377]
+- Add `showAxisDragHandles` and `showAxisRangeEntryBoxes` configuration options
+  [#1389]
+- Add `customdata` attribute to scatter traces to add custom data to scatter SVG
+  nodes [#1379]
+
+### Changed
+- Consistent handling of array containers during `relayout` [#1403]
+- Improve hover for `choropleth` traces [#1401]
+- Make range slider handles and mask crispier [#1409]
+- Bump `country-regex` dependency to `1.1.0` [#1392]
+
+### Fixed
+- Fix 3D on iOS devices [#1411]
+- Fix `surface` trace opacity scaling [#1415]
+- Fix hover data in animations [#1274]
+- Fix annotations edit when dragging from one axis to another [#1403]
+- Fix 3D hover labels for date axes [#1414]
+- Deleting cartesian subplots now clear their corresponding axis titles [#1393]
+- Fix hover for xyz column `heatmap` trace `'text'` [#1417]
+- Fix `scattermapbox` lines with trailing gaps [#1421]
+- Make `restyle`, `relayout` and `update` not mutate input update objects [#1376]
+- Fix race condition in gl2d `toImage` [#1388]
+- Fix handling of `Virgin Islands` country name [#1392]
+- Fix `Plotly.validate` for `colorscale` attributes [#1420]
+
+
+## [1.23.2] -- 2017-02-15
+
+### Changed
+- Bower installs now fetch un-minified `dist/plotly.js` bundle [#1373]
+- Add package to packagist repository [#1375]
+
+
+## [1.23.1] -- 2017-02-13
+
+### Fixed
+- Fix `relayout` for `scene.camera` values [#1364]
+- Fix scaling on axis corner drag interactions for `bar` traces [#1370]
+- Allow `bar` and `histogram` traces to coexist on same subplot [#1365]
+- Fix `bar` position computations when placeholder traces are present [#1310]
+- Fix auto-axis-type routine for data-less `candelestick`traces [#1359]
+
+
+## [1.23.0] -- 2017-02-06
+
+### Added
+- Add scrollbox to long dropdown updatemenus [#1214]
+
+### Fixed
+- Multiple IE9 fixes [#1332]
+- Ensure that `plotly_afterplot` is fired before `Plotly.plot` promise is
+  resolved [#1342]
+- Fix exception when dragging graphs with empty text labels [#1336]
+- Fix exception when creating empty `ohlc` and `candlestick` traces [#1348]
+- Fix `editable: true` legend items logic for `ohlc` and `candlestick` traces [#1349]
+- Fix restyle for contour traces in cases where autocontour is defaulted to true
+  [#1338]
+- Fix edge case in axis label tick assignments [#1324]
+- Fix vanishing titles text in `editable: true` [#1351]
+- Fix 3D thumbnail image generation [#1327]
+
+
+## [1.22.0] -- 2017-01-19
 
 ### Added
 - Add `cumulative` histogram attributes to generate Cumulative Distribution
@@ -43,7 +188,7 @@ where X.Y.Z is the semver of most recent plotly.js release.
 - Allow style fields in sub and sup text [#1288]
 
 
-## [1.21.3] -- 2016-01-05
+## [1.21.3] -- 2017-01-05
 
 ### Fixed
 - Fix zoom behavior on transformed traces [#1257]

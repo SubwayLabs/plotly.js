@@ -240,6 +240,20 @@ describe('Test Plots', function() {
         });
     });
 
+    describe('Plots.supplyTransformDefaults', function() {
+        it('should accept an empty layout when transforms present', function() {
+            var traceOut = {};
+            Plots.supplyTransformDefaults({}, traceOut, {
+                _globalTransforms: [{ type: 'filter'}]
+            });
+
+            // This isn't particularly interseting. More relevant is that
+            // the above supplyTransformDefaults call didn't fail due to
+            // missing transformModules data.
+            expect(traceOut.transforms.length).toEqual(1);
+        });
+    });
+
     describe('Plots.getSubplotIds', function() {
         var getSubplotIds = Plots.getSubplotIds;
 
@@ -397,7 +411,7 @@ describe('Test Plots', function() {
                 '_ev', '_internalEv', 'on', 'once', 'removeListener', 'removeAllListeners',
                 '_internalOn', '_internalOnce', '_removeInternalListener',
                 '_removeAllInternalListeners', 'emit', '_context', '_replotPending',
-                '_hmpixcount', '_hmlumcount', '_mouseDownTime'
+                '_hmpixcount', '_hmlumcount', '_mouseDownTime', '_legendMouseDownTime',
             ];
 
             Plots.purge(gd);
@@ -418,7 +432,6 @@ describe('Test Plots', function() {
             expect(gd._testref).toBeUndefined();
             expect(gd._promises).toBeUndefined();
             expect(gd._redrawTimer).toBeUndefined();
-            expect(gd._replotting).toBeUndefined();
             expect(gd.firstscatter).toBeUndefined();
             expect(gd.hmlumcount).toBeUndefined();
             expect(gd.hmpixcount).toBeUndefined();

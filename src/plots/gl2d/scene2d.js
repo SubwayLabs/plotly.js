@@ -22,6 +22,7 @@ var createOptions = require('./convert');
 var createCamera = require('./camera');
 var convertHTMLToUnicode = require('../../lib/html2unicode');
 var showNoWebGlMsg = require('../../lib/show_no_webgl_msg');
+var enforceAxisConstraints = require('../../plots/cartesian/constraints');
 
 var AXES = ['xaxis', 'yaxis'];
 var STATIC_CANVAS, STATIC_CONTEXT;
@@ -51,7 +52,6 @@ function Scene2D(options, fullLayout) {
 
     // trace set
     this.traces = {};
-    this._inputs = {};
 
     // create axes spikes
     this.spikes = createSpikes(this.glplot);
@@ -233,6 +233,9 @@ proto.updateSize = function(canvas) {
         canvas.height = pixelHeight;
     }
 
+    // make sure plots render right thing
+    if(this.redraw) this.redraw();
+
     return canvas;
 };
 
@@ -359,7 +362,6 @@ proto.destroy = function() {
     this.container.removeChild(this.mouseContainer);
 
     this.fullData = null;
-    this._inputs = null;
     this.glplot = null;
     this.stopped = true;
 };
@@ -425,6 +427,13 @@ proto.plot = function(fullData, calcData, fullLayout) {
         ax.setScale();
     }
 
+    var mockLayout = {
+        _axisConstraintGroups: this.graphDiv._fullLayout._axisConstraintGroups,
+        xaxis: this.xaxis,
+        yaxis: this.yaxis
+    };
+    enforceAxisConstraints({_fullLayout: mockLayout});
+
     options.ticks = this.computeTickMarks();
 
     options.dataBox = this.calcDataBox();
@@ -484,7 +493,6 @@ proto.updateTraces = function(fullData, calcData) {
     // update / create trace objects
     for(i = 0; i < fullData.length; i++) {
         fullTrace = fullData[i];
-        this._inputs[fullTrace.uid] = i;
         var calcTrace = calcData[i],
             traceObj = this.traces[fullTrace.uid];
 
@@ -494,19 +502,31 @@ proto.updateTraces = function(fullData, calcData) {
             this.traces[fullTrace.uid] = traceObj;
         }
     }
+
+    // order object per traces
+    this.glplot.objects.sort(function(a, b) {
+        return a._trace.index - b._trace.index;
+    });
+
 };
 
 proto.emitPointAction = function(nextSelection, eventType) {
+    var uid = nextSelection.trace.uid;
+    var trace;
 
-    var curveIndex = this._inputs[nextSelection.trace.uid];
+    for(var i = 0; i < this.fullData.length; i++) {
+        if(this.fullData[i].uid === uid) {
+            trace = this.fullData[i];
+        }
+    }
 
     this.graphDiv.emit(eventType, {
         points: [{
             x: nextSelection.traceCoord[0],
             y: nextSelection.traceCoord[1],
-            curveNumber: curveIndex,
+            curveNumber: trace.index,
             pointNumber: nextSelection.pointIndex,
-            data: this.fullData[curveIndex]._input,
+            data: trace._input,
             fullData: this.fullData,
             xaxis: this.xaxis,
             yaxis: this.yaxis
@@ -532,26 +552,36 @@ proto.draw = function() {
     var x = mouseListener.x * glplot.pixelRatio;
     var y = this.canvas.height - glplot.pixelRatio * mouseListener.y;
 
+    var result;
+
     if(camera.boxEnabled && fullLayout.dragmode === 'zoom') {
         this.selectBox.enabled = true;
 
-        this.selectBox.selectBox = [
+        var selectBox = this.selectBox.selectBox = [
             Math.min(camera.boxStart[0], camera.boxEnd[0]),
             Math.min(camera.boxStart[1], camera.boxEnd[1]),
             Math.max(camera.boxStart[0], camera.boxEnd[0]),
             Math.max(camera.boxStart[1], camera.boxEnd[1])
         ];
 
+        // 1D zoom
+        for(var i = 0; i < 2; i++) {
+            if(camera.boxStart[i] === camera.boxEnd[i]) {
+                selectBox[i] = glplot.dataBox[i];
+                selectBox[i + 2] = glplot.dataBox[i + 2];
+            }
+        }
+
         glplot.setDirty();
     }
-    else {
+    else if(!camera.panning) {
         this.selectBox.enabled = false;
 
         var size = fullLayout._size,
             domainX = this.xaxis.domain,
             domainY = this.yaxis.domain;
 
-        var result = glplot.pick(
+        result = glplot.pick(
             (x / glplot.pixelRatio) + size.l + domainX[0] * size.w,
             (y / glplot.pixelRatio) - (size.t + (1 - domainY[1]) * size.h)
         );
@@ -617,12 +647,15 @@ proto.draw = function() {
                 });
             }
         }
-        else if(!result && this.lastPickResult) {
-            this.spikes.update({});
-            this.lastPickResult = null;
-            this.graphDiv.emit('plotly_unhover');
-            Fx.loneUnhover(this.svgContainer);
-        }
+    }
+
+    // Remove hover effects if we're not over a point OR
+    // if we're zooming or panning (in which case result is not set)
+    if(!result && this.lastPickResult) {
+        this.spikes.update({});
+        this.lastPickResult = null;
+        this.graphDiv.emit('plotly_unhover');
+        Fx.loneUnhover(this.svgContainer);
     }
 
     glplot.draw();

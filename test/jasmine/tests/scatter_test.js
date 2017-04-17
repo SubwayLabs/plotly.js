@@ -1,7 +1,14 @@
+var d3 = require('d3');
 var Scatter = require('@src/traces/scatter');
 var makeBubbleSizeFn = require('@src/traces/scatter/make_bubble_size_func');
 var linePoints = require('@src/traces/scatter/line_points');
 var Lib = require('@src/lib');
+
+var Plotly = require('@lib/index');
+var createGraphDiv = require('../assets/create_graph_div');
+var destroyGraphDiv = require('../assets/destroy_graph_div');
+var customMatchers = require('../assets/custom_matchers');
+var fail = require('../assets/fail_test');
 
 describe('Test scatter', function() {
     'use strict';
@@ -325,4 +332,117 @@ describe('Test scatter', function() {
         // TODO: test coarser decimation outside plot, and removing very near duplicates from the four of a cluster
     });
 
+});
+
+describe('end-to-end scatter tests', function() {
+    var gd;
+
+    beforeEach(function() {
+        gd = createGraphDiv();
+    });
+
+    afterEach(destroyGraphDiv);
+
+    it('should add a plotly-customdata class to points with custom data', function(done) {
+        Plotly.plot(gd, [{
+            x: [1, 2, 3, 4, 5, 6, 7],
+            y: [2, 3, 4, 5, 6, 7, 8],
+            customdata: [null, undefined, 0, false, {foo: 'bar'}, 'a']
+        }]).then(function() {
+            var points = d3.selectAll('g.scatterlayer').selectAll('.point');
+
+            // Rather than just duplicating the logic, let's be explicit about
+            // what's expected. Specifially, only null and undefined (the default)
+            // do *not* add the class.
+            var expected = [false, false, true, true, true, true, false];
+
+            points.each(function(cd, i) {
+                expect(d3.select(this).classed('plotly-customdata')).toBe(expected[i]);
+            });
+
+            return Plotly.animate(gd, [{
+                data: [{customdata: []}]
+            }], {frame: {redraw: false, duration: 0}});
+        }).then(function() {
+            var points = d3.selectAll('g.scatterlayer').selectAll('.point');
+
+            points.each(function() {
+                expect(d3.select(this).classed('plotly-customdata')).toBe(false);
+            });
+
+        }).catch(fail).then(done);
+    });
+});
+
+describe('scatter hoverPoints', function() {
+
+    beforeAll(function() {
+        jasmine.addMatchers(customMatchers);
+    });
+
+    afterEach(destroyGraphDiv);
+
+    function _hover(gd, xval, yval, hovermode) {
+        return gd._fullData.map(function(trace, i) {
+            var cd = gd.calcdata[i];
+            var subplot = gd._fullLayout._plots.xy;
+
+            var out = Scatter.hoverPoints({
+                index: false,
+                distance: 20,
+                cd: cd,
+                trace: trace,
+                xa: subplot.xaxis,
+                ya: subplot.yaxis
+            }, xval, yval, hovermode);
+
+            return Array.isArray(out) ? out[0] : null;
+        });
+    }
+
+    it('should show \'hovertext\' items when present, \'text\' if not', function(done) {
+        var gd = createGraphDiv();
+        var mock = Lib.extendDeep({}, require('@mocks/text_chart_arrays'));
+
+        Plotly.plot(gd, mock).then(function() {
+            var pts = _hover(gd, 0, 1, 'x');
+
+            // as in 'hovertext' arrays
+            expect(pts[0].text).toEqual('Hover text\nA', 'hover text');
+            expect(pts[1].text).toEqual('Hover text G', 'hover text');
+            expect(pts[2].text).toEqual('a (hover)', 'hover text');
+
+            return Plotly.restyle(gd, 'hovertext', null);
+        })
+        .then(function() {
+            var pts = _hover(gd, 0, 1, 'x');
+
+            // as in 'text' arrays
+            expect(pts[0].text).toEqual('Text\nA', 'hover text');
+            expect(pts[1].text).toEqual('Text G', 'hover text');
+            expect(pts[2].text).toEqual('a', 'hover text');
+
+            return Plotly.restyle(gd, 'text', ['APPLE', 'BANANA', 'ORANGE']);
+        })
+        .then(function() {
+            var pts = _hover(gd, 1, 1, 'x');
+
+            // as in 'text' values
+            expect(pts[0].text).toEqual('APPLE', 'hover text');
+            expect(pts[1].text).toEqual('BANANA', 'hover text');
+            expect(pts[2].text).toEqual('ORANGE', 'hover text');
+
+            return Plotly.restyle(gd, 'hovertext', ['apple', 'banana', 'orange']);
+        })
+        .then(function() {
+            var pts = _hover(gd, 1, 1, 'x');
+
+            // as in 'hovertext' values
+            expect(pts[0].text).toEqual('apple', 'hover text');
+            expect(pts[1].text).toEqual('banana', 'hover text');
+            expect(pts[2].text).toEqual('orange', 'hover text');
+        })
+        .catch(fail)
+        .then(done);
+    });
 });

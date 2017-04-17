@@ -7,9 +7,9 @@ var supplyLayoutDefaults = require('@src/plots/mapbox/layout_defaults');
 var d3 = require('d3');
 var createGraphDiv = require('../assets/create_graph_div');
 var destroyGraphDiv = require('../assets/destroy_graph_div');
-var hasWebGLSupport = require('../assets/has_webgl_support');
 var mouseEvent = require('../assets/mouse_event');
 var customMatchers = require('../assets/custom_matchers');
+var failTest = require('../assets/fail_test');
 
 var MAPBOX_ACCESS_TOKEN = require('@build/credentials.json').MAPBOX_ACCESS_TOKEN;
 var TRANSITION_DELAY = 500;
@@ -175,8 +175,6 @@ describe('mapbox defaults', function() {
 describe('mapbox credentials', function() {
     'use strict';
 
-    if(!hasWebGLSupport('mapbox credentials')) return;
-
     var dummyToken = 'asfdsa124331wersdsa1321q3';
     var gd;
 
@@ -278,10 +276,8 @@ describe('mapbox credentials', function() {
     }, LONG_TIMEOUT_INTERVAL);
 });
 
-describe('mapbox plots', function() {
+describe('@noCI, mapbox plots', function() {
     'use strict';
-
-    if(!hasWebGLSupport('mapbox plots')) return;
 
     var mock = require('@mocks/mapbox_0.json'),
         gd;
@@ -504,9 +500,9 @@ describe('mapbox plots', function() {
             expect(relayoutCnt).toEqual(5);
 
             assertLayout('Mapbox Light', [0, 0], 6, [80, 100, 454, 135]);
-
-            done();
-        });
+        })
+        .catch(failTest)
+        .then(done);
     }, LONG_TIMEOUT_INTERVAL);
 
     it('should be able to add, update and remove layers', function(done) {
@@ -544,17 +540,22 @@ describe('mapbox plots', function() {
             return layerLen;
         }
 
+        function getLayerLength(gd) {
+            return (gd.layout.mapbox.layers || []).length;
+        }
+
         function assertLayerStyle(gd, expectations, index) {
             var mapInfo = getMapInfo(gd),
                 layers = mapInfo.layers,
                 layerNames = mapInfo.layoutLayers;
 
             var layer = layers[layerNames[index]];
+            expect(layer).toBeDefined(layerNames[index]);
 
             return new Promise(function(resolve) {
                 setTimeout(function() {
                     Object.keys(expectations).forEach(function(k) {
-                        expect(layer.paint[k]).toEqual(expectations[k]);
+                        expect(((layer || {}).paint || {})[k]).toEqual(expectations[k]);
                     });
                     resolve();
                 }, TRANSITION_DELAY);
@@ -564,25 +565,26 @@ describe('mapbox plots', function() {
         expect(countVisibleLayers(gd)).toEqual(0);
 
         Plotly.relayout(gd, 'mapbox.layers[0]', layer0).then(function() {
-            expect(gd.layout.mapbox.layers.length).toEqual(1);
+            expect(getLayerLength(gd)).toEqual(1);
             expect(countVisibleLayers(gd)).toEqual(1);
 
+            // add a new layer at the beginning
             return Plotly.relayout(gd, 'mapbox.layers[1]', layer1);
         })
         .then(function() {
-            expect(gd.layout.mapbox.layers.length).toEqual(2);
+            expect(getLayerLength(gd)).toEqual(2);
             expect(countVisibleLayers(gd)).toEqual(2);
 
             return Plotly.relayout(gd, mapUpdate);
         })
         .then(function() {
-            expect(gd.layout.mapbox.layers.length).toEqual(2);
+            expect(getLayerLength(gd)).toEqual(2);
             expect(countVisibleLayers(gd)).toEqual(2);
 
             return Plotly.relayout(gd, styleUpdate0);
         })
         .then(function() {
-            expect(gd.layout.mapbox.layers.length).toEqual(2);
+            expect(getLayerLength(gd)).toEqual(2);
             expect(countVisibleLayers(gd)).toEqual(2);
 
             return assertLayerStyle(gd, {
@@ -592,13 +594,13 @@ describe('mapbox plots', function() {
             }, 0);
         })
         .then(function() {
-            expect(gd.layout.mapbox.layers.length).toEqual(2);
+            expect(getLayerLength(gd)).toEqual(2);
             expect(countVisibleLayers(gd)).toEqual(2);
 
             return Plotly.relayout(gd, styleUpdate1);
         })
         .then(function() {
-            expect(gd.layout.mapbox.layers.length).toEqual(2);
+            expect(getLayerLength(gd)).toEqual(2);
             expect(countVisibleLayers(gd)).toEqual(2);
 
             return assertLayerStyle(gd, {
@@ -608,25 +610,26 @@ describe('mapbox plots', function() {
             }, 1);
         })
         .then(function() {
-            expect(gd.layout.mapbox.layers.length).toEqual(2);
+            expect(getLayerLength(gd)).toEqual(2);
             expect(countVisibleLayers(gd)).toEqual(2);
 
-            return Plotly.relayout(gd, 'mapbox.layers[1]', null);
+            // delete the first layer
+            return Plotly.relayout(gd, 'mapbox.layers[0]', null);
         })
         .then(function() {
-            expect(gd.layout.mapbox.layers.length).toEqual(1);
+            expect(getLayerLength(gd)).toEqual(1);
             expect(countVisibleLayers(gd)).toEqual(1);
 
             return Plotly.relayout(gd, 'mapbox.layers[0]', null);
         })
         .then(function() {
-            expect(gd.layout.mapbox.layers.length).toEqual(0);
+            expect(getLayerLength(gd)).toEqual(0);
             expect(countVisibleLayers(gd)).toEqual(0);
 
             return Plotly.relayout(gd, 'mapbox.layers[0]', {});
         })
         .then(function() {
-            expect(gd.layout.mapbox.layers).toEqual([]);
+            expect(gd.layout.mapbox.layers).toEqual([{}]);
             expect(countVisibleLayers(gd)).toEqual(0);
 
             // layer with no source are not drawn
@@ -634,11 +637,11 @@ describe('mapbox plots', function() {
             return Plotly.relayout(gd, 'mapbox.layers[0].source', layer0.source);
         })
         .then(function() {
-            expect(gd.layout.mapbox.layers.length).toEqual(1);
+            expect(getLayerLength(gd)).toEqual(1);
             expect(countVisibleLayers(gd)).toEqual(1);
-
-            done();
-        });
+        })
+        .catch(failTest)
+        .then(done);
     }, LONG_TIMEOUT_INTERVAL);
 
     it('should be able to update the access token', function(done) {
@@ -651,8 +654,9 @@ describe('mapbox plots', function() {
         }).then(function() {
             expect(gd._fullLayout.mapbox.accesstoken).toEqual(MAPBOX_ACCESS_TOKEN);
             expect(gd._promises.length).toEqual(0);
-            done();
-        });
+        })
+        .catch(failTest)
+        .then(done);
     }, LONG_TIMEOUT_INTERVAL);
 
     it('should be able to update traces', function(done) {
@@ -688,9 +692,9 @@ describe('mapbox plots', function() {
         })
         .then(function() {
             assertDataPts([5, 5]);
-
-            done();
-        });
+        })
+        .catch(failTest)
+        .then(done);
     }, LONG_TIMEOUT_INTERVAL);
 
     it('should display to hover labels on mouse over', function(done) {
@@ -704,7 +708,9 @@ describe('mapbox plots', function() {
 
         assertMouseMove(blankPos, 0).then(function() {
             return assertMouseMove(pointPos, 1);
-        }).then(done);
+        })
+        .catch(failTest)
+        .then(done);
     }, LONG_TIMEOUT_INTERVAL);
 
     it('should respond to hover interactions by', function(done) {
@@ -750,9 +756,9 @@ describe('mapbox plots', function() {
         .then(function() {
             expect(hoverCnt).toEqual(1);
             expect(unhoverCnt).toEqual(1);
-
-            done();
-        });
+        })
+        .catch(failTest)
+        .then(done);
     }, LONG_TIMEOUT_INTERVAL);
 
     it('should respond drag / scroll interactions', function(done) {
@@ -808,6 +814,7 @@ describe('mapbox plots', function() {
             assertLayout([-19.651, 13.751], 1.234, { withUpdateData: true });
 
         })
+        .catch(failTest)
         .then(done);
 
         // TODO test scroll
@@ -844,6 +851,7 @@ describe('mapbox plots', function() {
                 expect(ptData.pointNumber).toEqual(0, 'returning the correct point number');
             });
         })
+        .catch(failTest)
         .then(done);
     }, LONG_TIMEOUT_INTERVAL);
 
@@ -956,5 +964,78 @@ describe('mapbox plots', function() {
             }, MOUSE_DELAY);
         });
     }
+});
 
+describe('@noCI, mapbox toImage', function() {
+    var MINIMUM_LENGTH = 1e5;
+
+    var gd;
+
+    beforeEach(function() {
+        gd = createGraphDiv();
+    });
+
+    afterEach(function() {
+        Plotly.purge(gd);
+        Plotly.setPlotConfig({ mapboxAccessToken: null });
+        destroyGraphDiv();
+    });
+
+    it('should generate image data with global credentials', function(done) {
+        Plotly.setPlotConfig({
+            mapboxAccessToken: MAPBOX_ACCESS_TOKEN
+        });
+
+        Plotly.newPlot(gd, [{
+            type: 'scattermapbox',
+            lon: [0, 10, 20],
+            lat: [-10, 10, -10]
+        }])
+        .then(function() {
+            return Plotly.toImage(gd);
+        })
+        .then(function(imgData) {
+            expect(imgData.length).toBeGreaterThan(MINIMUM_LENGTH);
+        })
+        .catch(failTest)
+        .then(done);
+    }, LONG_TIMEOUT_INTERVAL);
+
+    it('should generate image data with config credentials', function(done) {
+        Plotly.newPlot(gd, [{
+            type: 'scattermapbox',
+            lon: [0, 10, 20],
+            lat: [-10, 10, -10]
+        }], {}, {
+            mapboxAccessToken: MAPBOX_ACCESS_TOKEN
+        })
+        .then(function() {
+            return Plotly.toImage(gd);
+        })
+        .then(function(imgData) {
+            expect(imgData.length).toBeGreaterThan(MINIMUM_LENGTH);
+        })
+        .catch(failTest)
+        .then(done);
+    }, LONG_TIMEOUT_INTERVAL);
+
+    it('should generate image data with layout credentials', function(done) {
+        Plotly.newPlot(gd, [{
+            type: 'scattermapbox',
+            lon: [0, 10, 20],
+            lat: [-10, 10, -10]
+        }], {
+            mapbox: {
+                accesstoken: MAPBOX_ACCESS_TOKEN
+            }
+        })
+        .then(function() {
+            return Plotly.toImage(gd);
+        })
+        .then(function(imgData) {
+            expect(imgData.length).toBeGreaterThan(MINIMUM_LENGTH);
+        })
+        .catch(failTest)
+        .then(done);
+    }, LONG_TIMEOUT_INTERVAL);
 });

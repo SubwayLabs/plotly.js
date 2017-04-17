@@ -12,11 +12,11 @@
                 1
             ],
             "mode": "lines+markers+text",
-            "name": "Lines, Markers and Text",
+            "name": "Lines,\nMarkers\rand\r\nText",
             "text": [
-                "Text A",
-                "Text B",
-                "Text C"
+                "Text\nA",
+                "Text\rB",
+                "Text\r\nC"
             ],
             "textfont": {
                 "family": [
@@ -39,6 +39,11 @@
                 "top right",
                 "top left",
                 "top left"
+            ],
+            "hovertext": [
+                "Hover text\nA",
+                "Hover text\rB",
+                "Hover text\r\nC"
             ],
             "type": "scatter",
             "uid": "459c77"
@@ -83,6 +88,11 @@
                 "bottom left",
                 "bottom left"
             ],
+            "hovertext": [
+                "Hover text G",
+                "Hover text H",
+                "Hover text I"
+            ],
             "type": "scatter",
             "uid": "f8361c"
         },
@@ -103,6 +113,11 @@
                 "a",
                 "",
                 "b"
+            ],
+            "hovertext": [
+                "a (hover)",
+                "",
+                "b (hover)"
             ]
         }
     ],

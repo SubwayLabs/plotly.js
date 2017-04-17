@@ -11,9 +11,25 @@ var topojsonUtils = require('@src/lib/topojson_utils');
 var d3 = require('d3');
 var createGraphDiv = require('../assets/create_graph_div');
 var destroyGraphDiv = require('../assets/destroy_graph_div');
+var customMatchers = require('../assets/custom_matchers');
+var getClientPosition = require('../assets/get_client_position');
 var mouseEvent = require('../assets/mouse_event');
+var click = require('../assets/click');
 
+var DBLCLICKDELAY = require('@src/constants/interactions').DBLCLICKDELAY;
 var HOVERMINTIME = require('@src/plots/cartesian/constants').HOVERMINTIME;
+
+
+function move(fromX, fromY, toX, toY, delay) {
+    return new Promise(function(resolve) {
+        mouseEvent('mousemove', fromX, fromY);
+
+        setTimeout(function() {
+            mouseEvent('mousemove', toX, toY);
+            resolve();
+        }, delay || DBLCLICKDELAY / 4);
+    });
+}
 
 
 describe('Test geoaxes', function() {
@@ -380,6 +396,25 @@ describe('geojson / topojson utils', function() {
             expect(out).toEqual(false);
         });
     });
+
+    describe('should distinguish between US and US Virgin Island', function() {
+
+        // N.B. Virgin Island don't appear at the 'world_110m' resolution
+        var topojsonName = 'world_50m';
+        var topojson = GeoAssets.topojson[topojsonName];
+
+        var shouldPass = [
+            'Virgin Islands (U.S.)',
+            ' Virgin   Islands (U.S.) '
+        ];
+
+        shouldPass.forEach(function(str) {
+            it('(case ' + str + ')', function() {
+                var out = _locationToFeature(topojson, str, 'country names');
+                expect(out.id).toEqual('VIR');
+            });
+        });
+    });
 });
 
 describe('Test geo interactions', function() {
@@ -404,7 +439,7 @@ describe('Test geo interactions', function() {
         }
 
         function countGeos() {
-            return d3.select('div.geo-container').selectAll('div').size();
+            return d3.select('g.geolayer').selectAll('.geo').size();
         }
 
         function countColorBars() {
@@ -596,6 +631,7 @@ describe('Test geo interactions', function() {
         describe('choropleth hover labels', function() {
             beforeEach(function() {
                 mouseEventChoropleth('mouseover');
+                mouseEventChoropleth('mousemove');
             });
 
             it('should show one hover text group', function() {
@@ -625,6 +661,7 @@ describe('Test geo interactions', function() {
                 });
 
                 mouseEventChoropleth('mouseover');
+                mouseEventChoropleth('mousemove');
             });
 
             it('should contain the correct fields', function() {
@@ -650,6 +687,8 @@ describe('Test geo interactions', function() {
                     ptData = eventData.points[0];
                 });
 
+                mouseEventChoropleth('mouseover');
+                mouseEventChoropleth('mousemove');
                 mouseEventChoropleth('click');
             });
 
@@ -671,13 +710,18 @@ describe('Test geo interactions', function() {
         describe('choropleth unhover events', function() {
             var ptData;
 
-            beforeEach(function() {
+            beforeEach(function(done) {
                 gd.on('plotly_unhover', function(eventData) {
                     ptData = eventData.points[0];
                 });
 
                 mouseEventChoropleth('mouseover');
+                mouseEventChoropleth('mousemove');
                 mouseEventChoropleth('mouseout');
+                setTimeout(function() {
+                    mouseEvent('mousemove', 300, 235);
+                    done();
+                }, HOVERMINTIME + 100);
             });
 
             it('should contain the correct fields', function() {
@@ -984,6 +1028,197 @@ describe('Test geo interactions', function() {
                 });
             });
 
+        });
+    });
+});
+
+
+describe('Test event property of interactions on a geo plot:', function() {
+    var mock = require('@mocks/geo_scattergeo-locations.json');
+
+    var mockCopy, gd;
+
+    var blankPos = [10, 10],
+        pointPos,
+        nearPos;
+
+    beforeAll(function(done) {
+        jasmine.addMatchers(customMatchers);
+
+        gd = createGraphDiv();
+        mockCopy = Lib.extendDeep({}, mock);
+        Plotly.plot(gd, mockCopy.data, mockCopy.layout).then(function() {
+            pointPos = getClientPosition('path.point');
+            nearPos = [pointPos[0] - 30, pointPos[1] - 30];
+            destroyGraphDiv();
+            done();
+        });
+    });
+
+    beforeEach(function() {
+        gd = createGraphDiv();
+        mockCopy = Lib.extendDeep({}, mock);
+    });
+
+    afterEach(destroyGraphDiv);
+
+    describe('click events', function() {
+        var futureData;
+
+        beforeEach(function(done) {
+            Plotly.plot(gd, mockCopy.data, mockCopy.layout).then(done);
+
+            gd.on('plotly_click', function(data) {
+                futureData = data;
+            });
+        });
+
+        it('should not be trigged when not on data points', function() {
+            click(blankPos[0], blankPos[1]);
+            expect(futureData).toBe(undefined);
+        });
+
+        it('should contain the correct fields', function() {
+            click(pointPos[0], pointPos[1]);
+
+            var pt = futureData.points[0],
+                evt = futureData.event;
+
+            expect(Object.keys(pt)).toEqual([
+                'data', 'fullData', 'curveNumber', 'pointNumber', 'lon', 'lat',
+                'location'
+            ]);
+
+            expect(pt.curveNumber).toEqual(0, 'points[0].curveNumber');
+            expect(typeof pt.data).toEqual(typeof {}, 'points[0].data');
+            expect(typeof pt.fullData).toEqual(typeof {}, 'points[0].fullData');
+            expect(pt.lat).toEqual(-101.57, 'points[0].lat');
+            expect(pt.lon).toEqual(57.75, 'points[0].lon');
+            expect(pt.location).toEqual(57.75, 'points[0].location');
+            expect(pt.pointNumber).toEqual(0, 'points[0].pointNumber');
+
+            expect(evt.clientX).toEqual(pointPos[0], 'event.clientX');
+            expect(evt.clientY).toEqual(pointPos[1], 'event.clientY');
+        });
+    });
+
+    describe('modified click events', function() {
+        var clickOpts = {
+                altKey: true,
+                ctrlKey: true,
+                metaKey: true,
+                shiftKey: true
+            },
+            futureData;
+
+        beforeEach(function(done) {
+            Plotly.plot(gd, mockCopy.data, mockCopy.layout).then(done);
+
+            gd.on('plotly_click', function(data) {
+                futureData = data;
+            });
+        });
+
+        it('should not be trigged when not on data points', function() {
+            click(blankPos[0], blankPos[1], clickOpts);
+            expect(futureData).toBe(undefined);
+        });
+
+        it('should contain the correct fields', function() {
+            click(pointPos[0], pointPos[1], clickOpts);
+
+            var pt = futureData.points[0],
+                evt = futureData.event;
+
+            expect(Object.keys(pt)).toEqual([
+                'data', 'fullData', 'curveNumber', 'pointNumber', 'lon', 'lat',
+                'location'
+            ]);
+
+            expect(pt.curveNumber).toEqual(0, 'points[0].curveNumber');
+            expect(typeof pt.data).toEqual(typeof {}, 'points[0].data');
+            expect(typeof pt.fullData).toEqual(typeof {}, 'points[0].fullData');
+            expect(pt.lat).toEqual(-101.57, 'points[0].lat');
+            expect(pt.lon).toEqual(57.75, 'points[0].lon');
+            expect(pt.location).toEqual(57.75, 'points[0].location');
+            expect(pt.pointNumber).toEqual(0, 'points[0].pointNumber');
+
+            expect(evt.clientX).toEqual(pointPos[0], 'event.clientX');
+            expect(evt.clientY).toEqual(pointPos[1], 'event.clientY');
+            Object.getOwnPropertyNames(clickOpts).forEach(function(opt) {
+                expect(evt[opt]).toEqual(clickOpts[opt], 'event.' + opt);
+            });
+        });
+    });
+
+    describe('hover events', function() {
+        var futureData;
+
+        beforeEach(function(done) {
+            Plotly.plot(gd, mockCopy.data, mockCopy.layout).then(done);
+
+            gd.on('plotly_hover', function(data) {
+                futureData = data;
+            });
+        });
+
+        it('should contain the correct fields', function() {
+            mouseEvent('mousemove', blankPos[0], blankPos[1]);
+            mouseEvent('mousemove', pointPos[0], pointPos[1]);
+
+            var pt = futureData.points[0],
+                evt = futureData.event;
+
+            expect(Object.keys(pt)).toEqual([
+                'data', 'fullData', 'curveNumber', 'pointNumber', 'lon', 'lat',
+                'location'
+            ]);
+
+            expect(pt.curveNumber).toEqual(0, 'points[0].curveNumber');
+            expect(typeof pt.data).toEqual(typeof {}, 'points[0].data');
+            expect(typeof pt.fullData).toEqual(typeof {}, 'points[0].fullData');
+            expect(pt.lat).toEqual(-101.57, 'points[0].lat');
+            expect(pt.lon).toEqual(57.75, 'points[0].lon');
+            expect(pt.location).toEqual(57.75, 'points[0].location');
+            expect(pt.pointNumber).toEqual(0, 'points[0].pointNumber');
+
+            expect(evt.clientX).toEqual(pointPos[0], 'event.clientX');
+            expect(evt.clientY).toEqual(pointPos[1], 'event.clientY');
+        });
+    });
+
+    describe('unhover events', function() {
+        var futureData;
+
+        beforeEach(function(done) {
+            Plotly.plot(gd, mockCopy.data, mockCopy.layout).then(done);
+
+            gd.on('plotly_unhover', function(data) {
+                futureData = data;
+            });
+        });
+
+        it('should contain the correct fields', function(done) {
+            move(pointPos[0], pointPos[1], nearPos[0], nearPos[1], HOVERMINTIME + 10).then(function() {
+                var pt = futureData.points[0],
+                    evt = futureData.event;
+
+                expect(Object.keys(pt)).toEqual([
+                    'data', 'fullData', 'curveNumber', 'pointNumber', 'lon', 'lat',
+                    'location'
+                ]);
+
+                expect(pt.curveNumber).toEqual(0, 'points[0].curveNumber');
+                expect(typeof pt.data).toEqual(typeof {}, 'points[0].data');
+                expect(typeof pt.fullData).toEqual(typeof {}, 'points[0].fullData');
+                expect(pt.lat).toEqual(-101.57, 'points[0].lat');
+                expect(pt.lon).toEqual(57.75, 'points[0].lon');
+                expect(pt.location).toEqual(57.75, 'points[0].location');
+                expect(pt.pointNumber).toEqual(0, 'points[0].pointNumber');
+
+                expect(evt.clientX).toEqual(nearPos[0], 'event.clientX');
+                expect(evt.clientY).toEqual(nearPos[1], 'event.clientY');
+            }).then(done);
         });
     });
 });

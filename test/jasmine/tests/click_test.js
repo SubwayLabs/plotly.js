@@ -1,7 +1,9 @@
 var Plotly = require('@lib/index');
 var Lib = require('@src/lib');
-var DBLCLICKDELAY = require('@src/plots/cartesian/constants').DBLCLICKDELAY;
+var Drawing = require('@src/components/drawing');
+var DBLCLICKDELAY = require('@src/constants/interactions').DBLCLICKDELAY;
 
+var d3 = require('d3');
 var createGraphDiv = require('../assets/create_graph_div');
 var destroyGraphDiv = require('../assets/destroy_graph_div');
 var mouseEvent = require('../assets/mouse_event');
@@ -12,7 +14,31 @@ var customMatchers = require('../assets/custom_matchers');
 // from the mousemove events and then simulate
 // a click event on mouseup
 var click = require('../assets/click');
-var doubleClick = require('../assets/double_click');
+var doubleClickRaw = require('../assets/double_click');
+
+function move(fromX, fromY, toX, toY, delay) {
+    return new Promise(function(resolve) {
+        mouseEvent('mousemove', fromX, fromY);
+
+        setTimeout(function() {
+            mouseEvent('mousemove', toX, toY);
+            resolve();
+        }, delay || DBLCLICKDELAY / 4);
+    });
+}
+
+function drag(fromX, fromY, toX, toY, delay) {
+    return new Promise(function(resolve) {
+        mouseEvent('mousemove', fromX, fromY);
+        mouseEvent('mousedown', fromX, fromY);
+        mouseEvent('mousemove', toX, toY);
+
+        setTimeout(function() {
+            mouseEvent('mouseup', toX, toY);
+            resolve();
+        }, delay || DBLCLICKDELAY / 4);
+    });
+}
 
 
 describe('Test click interactions:', function() {
@@ -37,16 +63,9 @@ describe('Test click interactions:', function() {
 
     afterEach(destroyGraphDiv);
 
-    function drag(fromX, fromY, toX, toY, delay) {
-        return new Promise(function(resolve) {
-            mouseEvent('mousemove', fromX, fromY);
-            mouseEvent('mousedown', fromX, fromY);
-            mouseEvent('mousemove', toX, toY);
-
-            setTimeout(function() {
-                mouseEvent('mouseup', toX, toY);
-                resolve();
-            }, delay || DBLCLICKDELAY / 4);
+    function doubleClick(x, y) {
+        return doubleClickRaw(x, y).then(function() {
+            return Plotly.Plots.previousPromises(gd);
         });
     }
 
@@ -79,6 +98,55 @@ describe('Test click interactions:', function() {
             expect(pt.pointNumber).toEqual(11);
             expect(pt.x).toEqual(0.125);
             expect(pt.y).toEqual(2.125);
+
+            var evt = futureData.event;
+            expect(evt.clientX).toEqual(pointPos[0]);
+            expect(evt.clientY).toEqual(pointPos[1]);
+        });
+    });
+
+    describe('modified click events', function() {
+        var clickOpts = {
+                altKey: true,
+                ctrlKey: true,
+                metaKey: true,
+                shiftKey: true
+            },
+            futureData;
+
+        beforeEach(function(done) {
+            Plotly.plot(gd, mockCopy.data, mockCopy.layout).then(done);
+
+            gd.on('plotly_click', function(data) {
+                futureData = data;
+            });
+        });
+
+        it('should not be trigged when not on data points', function() {
+            click(blankPos[0], blankPos[1], clickOpts);
+            expect(futureData).toBe(undefined);
+        });
+
+        it('should contain the correct fields', function() {
+            click(pointPos[0], pointPos[1], clickOpts);
+            expect(futureData.points.length).toEqual(1);
+
+            var pt = futureData.points[0];
+            expect(Object.keys(pt)).toEqual([
+                'data', 'fullData', 'curveNumber', 'pointNumber',
+                'x', 'y', 'xaxis', 'yaxis'
+            ]);
+            expect(pt.curveNumber).toEqual(0);
+            expect(pt.pointNumber).toEqual(11);
+            expect(pt.x).toEqual(0.125);
+            expect(pt.y).toEqual(2.125);
+
+            var evt = futureData.event;
+            expect(evt.clientX).toEqual(pointPos[0]);
+            expect(evt.clientY).toEqual(pointPos[1]);
+            Object.getOwnPropertyNames(clickOpts).forEach(function(opt) {
+                expect(evt[opt]).toEqual(clickOpts[opt], opt);
+            });
         });
     });
 
@@ -183,6 +251,46 @@ describe('Test click interactions:', function() {
             expect(pt.pointNumber).toEqual(11);
             expect(pt.x).toEqual(0.125);
             expect(pt.y).toEqual(2.125);
+
+            var evt = futureData.event;
+            expect(evt.clientX).toEqual(pointPos[0]);
+            expect(evt.clientY).toEqual(pointPos[1]);
+        });
+    });
+
+    describe('plotly_unhover event with hoverinfo set to none', function() {
+        var futureData;
+
+        beforeEach(function(done) {
+
+            var modifiedMockCopy = Lib.extendDeep({}, mockCopy);
+            modifiedMockCopy.data[0].hoverinfo = 'none';
+            Plotly.plot(gd, modifiedMockCopy.data, modifiedMockCopy.layout)
+                .then(done);
+
+            gd.on('plotly_unhover', function(data) {
+                futureData = data;
+            });
+        });
+
+        it('should contain the correct fields despite hoverinfo: "none"', function(done) {
+            move(pointPos[0], pointPos[1], blankPos[0], blankPos[1]).then(function() {
+                expect(futureData.points.length).toEqual(1);
+
+                var pt = futureData.points[0];
+                expect(Object.keys(pt)).toEqual([
+                    'data', 'fullData', 'curveNumber', 'pointNumber',
+                    'x', 'y', 'xaxis', 'yaxis'
+                ]);
+                expect(pt.curveNumber).toEqual(0);
+                expect(pt.pointNumber).toEqual(11);
+                expect(pt.x).toEqual(0.125);
+                expect(pt.y).toEqual(2.125);
+
+                var evt = futureData.event;
+                expect(evt.clientX).toEqual(blankPos[0]);
+                expect(evt.clientY).toEqual(blankPos[1]);
+            }).then(done);
         });
     });
 
@@ -750,7 +858,7 @@ describe('Test click interactions:', function() {
             var plot = gd._fullLayout._plots.xy.plot;
 
             mouseEvent('mousemove', 393, 243);
-            mouseEvent('scroll', 393, 243, { deltaX: 0, deltaY: -1000 });
+            mouseEvent('scroll', 393, 243, { deltaX: 0, deltaY: -20 });
 
             var transform = plot.attr('transform');
 
@@ -760,10 +868,10 @@ describe('Test click interactions:', function() {
                 }
             };
 
-            var translate = Lib.getTranslate(mockEl),
-                scale = Lib.getScale(mockEl);
+            var translate = Drawing.getTranslate(mockEl),
+                scale = Drawing.getScale(mockEl);
 
-            expect([translate.x, translate.y]).toBeCloseToArray([61.070, 97.712]);
+            expect([translate.x, translate.y]).toBeCloseToArray([-25.941, 43.911]);
             expect([scale.x, scale.y]).toBeCloseToArray([1.221, 1.221]);
         });
     });
@@ -807,4 +915,50 @@ describe('Test click interactions:', function() {
             mouseEvent('mouseup', end, end);
         });
     });
+});
+
+
+describe('dragbox', function() {
+
+    afterEach(destroyGraphDiv);
+
+    it('should scale subplot and inverse scale scatter points', function(done) {
+        var mock = Lib.extendDeep({}, require('@mocks/bar_line.json'));
+
+        function assertScale(node, x, y) {
+            var scale = Drawing.getScale(node);
+            expect(scale.x).toBeCloseTo(x, 1);
+            expect(scale.y).toBeCloseTo(y, 1);
+        }
+
+        Plotly.plot(createGraphDiv(), mock).then(function() {
+            var node = d3.select('rect.nedrag').node();
+            var pos = getRectCenter(node);
+
+            assertScale(d3.select('.plot').node(), 1, 1);
+
+            d3.selectAll('.point').each(function() {
+                assertScale(this, 1, 1);
+            });
+
+            mouseEvent('mousemove', pos[0], pos[1]);
+            mouseEvent('mousedown', pos[0], pos[1]);
+            mouseEvent('mousemove', pos[0] + 50, pos[1]);
+
+            setTimeout(function() {
+                assertScale(d3.select('.plot').node(), 1.14, 1);
+
+                d3.select('.scatterlayer').selectAll('.point').each(function() {
+                    assertScale(this, 0.87, 1);
+                });
+                d3.select('.barlayer').selectAll('.point').each(function() {
+                    assertScale(this, 1, 1);
+                });
+
+                mouseEvent('mouseup', pos[0] + 50, pos[1]);
+                done();
+            }, DBLCLICKDELAY / 4);
+        });
+    });
+
 });
