@@ -96,19 +96,11 @@
     "height": 500,
     "xaxis": {
       "anchoroffset": true,
-      "title": "This needs to be here for now",
-      "domain": [
-        0.2,
-        0.8
-      ]
+      "title": "This needs to be here for now"
     },
     "xaxis2": {
       "anchoroffset": true,
       "title": "This is another one",
-      "domain": [
-        0.2,
-        0.8
-      ],
       "overlaying": "x",
       "anchor": "y"
     },
@@ -120,11 +112,7 @@
       "titlefont": {
         "color": "#1f77b4"
       },
-      "title": "yaxis title",
-      "domain": [
-        0.1,
-        1
-      ]
+      "title": "yaxis title"
     },
     "yaxis2": {
       "title": "yaxis2 title",

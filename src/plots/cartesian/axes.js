@@ -18,6 +18,7 @@ var svgTextUtils = require('../../lib/svg_text_utils');
 var Titles = require('../../components/titles');
 var Color = require('../../components/color');
 var Drawing = require('../../components/drawing');
+var Plots = require('../../plots/plots');
 
 var constants = require('../../constants/numerical');
 var FP_SAFE = constants.FP_SAFE;
@@ -1886,10 +1887,28 @@ axes.doTicks = function(gd, axid, skipTitle) {
             ax._boundingBox = comboBox;
         }
 
+        function expandMargins() {
+            var bBox = ax._boundingBox
+            var halfWidth = bBox.width * 0.5
+            var halfHeight = bBox.height * 0.5
+            var x = (bBox.left + halfWidth - fullLayout._size.l) / fullLayout._size.w
+            var y = (fullLayout._size.h + fullLayout._size.t - bBox.top - halfHeight) / fullLayout._size.h
+            console.log(fullLayout._size.h, fullLayout._size.t,  bBox.top, halfHeight)
+            Plots.autoMargin(gd, 'axisLabels' + axid, {
+                x: x,
+                y: y,
+                l: halfWidth,
+                r: halfWidth,
+                b: halfHeight,
+                t: halfHeight,
+            });
+        }
+
         var done = Lib.syncOrAsync([
             allLabelsReady,
             fixLabelOverlaps,
-            calcBoundingBox
+            calcBoundingBox,
+            expandMargins
         ]);
         if(done && done.then) gd._promises.push(done);
         return done;
