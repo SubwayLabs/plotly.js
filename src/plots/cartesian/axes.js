@@ -1891,17 +1891,42 @@ axes.doTicks = function(gd, axid, skipTitle) {
             var bBox = ax._boundingBox
             var halfWidth = bBox.width * 0.5
             var halfHeight = bBox.height * 0.5
-            var x = (bBox.left + halfWidth - fullLayout._size.l) / fullLayout._size.w
-            var y = (fullLayout._size.h + fullLayout._size.t - bBox.top - halfHeight) / fullLayout._size.h
-            console.log(fullLayout._size.h, fullLayout._size.t,  bBox.top, halfHeight)
-            Plots.autoMargin(gd, 'axisLabels' + axid, {
-                x: x,
-                y: y,
+            var margins = {
+                x: 0.5,
+                y: 0.5,
                 l: halfWidth,
                 r: halfWidth,
                 b: halfHeight,
-                t: halfHeight,
-            });
+                t: halfHeight
+            };
+            // For some strange reason, the four sides of the plot need slightly different margin calculations
+            // to be stable.
+            if (ax.anchor == 'x') {
+                if (ax.side == 'right') {
+                    margins.x = 1 + (ax._anchorOffset / fullLayout._size.w);
+                    margins.l = 0
+                    margins.r = bBox.width
+                }
+                else {
+                    margins.x = (bBox.left + halfWidth - fullLayout._size.l) / fullLayout._size.w
+                    margins.l = halfWidth;
+                    margins.r = halfWidth;
+                }
+            }
+            else if (ax.anchor == 'y') {
+                if (ax.side == 'top') {
+                    margins.y = 1 + (ax._anchorOffset / fullLayout._size.h)
+                    margins.t = bBox.height
+                    margins.b = 0
+                }
+                else {
+                    margins.y = -(ax._anchorOffset / fullLayout._size.h)
+                    margins.t = 0
+                    margins.b = bBox.height
+                }
+            }
+
+            Plots.autoMargin(gd, 'axisLabels' + axid, margins);
         }
 
         var done = Lib.syncOrAsync([

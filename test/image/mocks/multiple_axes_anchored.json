@@ -125,7 +125,6 @@
       "anchor": "x",
       "anchoroffset": true,
       "side": "left",
-      "position": 0.15,
       "overlaying": "y"
     },
     "yaxis3": {
@@ -152,7 +151,6 @@
       "anchor": "x",
       "anchoroffset": true,
       "side": "right",
-      "position": 0.85,
       "overlaying": "y"
     },
     "yaxis5": {
@@ -166,7 +164,6 @@
       "anchor": "x",
       "anchoroffset": true,
       "side": "right",
-      "position": 0.85,
       "overlaying": "y"
     },
     "yaxis6": {
@@ -180,7 +177,6 @@
       "anchor": "x",
       "anchoroffset": true,
       "side": "left",
-      "position": 0.85,
       "overlaying": "y"
     }
   }
