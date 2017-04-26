@@ -18,6 +18,7 @@ var svgTextUtils = require('../../lib/svg_text_utils');
 var Titles = require('../../components/titles');
 var Color = require('../../components/color');
 var Drawing = require('../../components/drawing');
+var Plots = require('../../plots/plots');
 
 var constants = require('../../constants/numerical');
 var FP_SAFE = constants.FP_SAFE;
@@ -1886,10 +1887,51 @@ axes.doTicks = function(gd, axid, skipTitle) {
             ax._boundingBox = comboBox;
         }
 
+        function expandMargins() {
+            var bBox = ax._boundingBox
+            var halfWidth = bBox.width * 0.5
+            var halfHeight = bBox.height * 0.5
+            var margins = {
+                x: 0.5,
+                y: 0.5,
+                l: halfWidth,
+                r: halfWidth,
+                b: halfHeight,
+                t: halfHeight
+            };
+            if (ax.anchor == 'x') {
+                if (ax.side == 'right') {
+                    margins.x = 1 + (ax._anchorOffset / fullLayout._size.w);
+                    margins.l = 0
+                    margins.r = bBox.width
+                }
+                else {
+                    margins.x = ax._anchorOffset / fullLayout._size.w
+                    margins.l = bBox.width;
+                    margins.r = 0;
+                }
+            }
+            else if (ax.anchor == 'y') {
+                if (ax.side == 'top') {
+                    margins.y = 1 + (ax._anchorOffset / fullLayout._size.h)
+                    margins.t = bBox.height
+                    margins.b = 0
+                }
+                else {
+                    margins.y = -(ax._anchorOffset / fullLayout._size.h)
+                    margins.t = 0
+                    margins.b = bBox.height
+                }
+            }
+
+            Plots.autoMargin(gd, 'axisLabels' + axid, margins);
+        }
+
         var done = Lib.syncOrAsync([
             allLabelsReady,
             fixLabelOverlaps,
-            calcBoundingBox
+            calcBoundingBox,
+            expandMargins
         ]);
         if(done && done.then) gd._promises.push(done);
         return done;

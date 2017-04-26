@@ -92,39 +92,51 @@
   ],
   "layout": {
     "title": "multiple y-axes example",
-    "width": 800,
-    "height": 500,
+    "width": 1200,
+    "height": 800,
+    "legend": {
+        "orientation": "h",
+        "y": 0,
+        "yanchor": "top"
+    },
     "xaxis": {
       "anchoroffset": true,
-      "title": "This needs to be here for now",
-      "domain": [
-        0.2,
-        0.8
-      ]
+      "title": "This needs to be here for now"
     },
     "xaxis2": {
       "anchoroffset": true,
       "title": "This is another one",
-      "domain": [
-        0.2,
-        0.8
-      ],
       "overlaying": "x",
-      "anchor": "y"
+      "anchor": "y",
+      "titlefont": {
+        "size": 30
+      },
+      "tickfont": {
+        "size": 30
+      }
+    },
+    "xaxis3": {
+      "anchoroffset": true,
+      "title": "This is another",
+      "overlaying": "x",
+      "anchor": "y",
+      "titlefont": {
+        "size": 30
+      },
+      "tickfont": {
+        "size": 30
+      }
     },
     "yaxis": {
       "anchoroffset": true,
+      "anchor": "x",
       "tickfont": {
         "color": "#1f77b4"
       },
       "titlefont": {
         "color": "#1f77b4"
       },
-      "title": "yaxis title",
-      "domain": [
-        0.1,
-        1
-      ]
+      "title": "yaxis title"
     },
     "yaxis2": {
       "title": "yaxis2 title",
@@ -137,16 +149,17 @@
       "anchor": "x",
       "anchoroffset": true,
       "side": "left",
-      "position": 0.15,
       "overlaying": "y"
     },
     "yaxis3": {
       "title": "yaxis3 title",
       "titlefont": {
-        "color": "#d62728"
+        "color": "#d62728",
+        "size": 27
       },
       "tickfont": {
-        "color": "#d62728"
+        "color": "#d62728",
+        "size": 27
       },
       "anchor": "x",
       "anchoroffset": true,
@@ -159,12 +172,12 @@
         "color": "#9467bd"
       },
       "tickfont": {
-        "color": "#9467bd"
+        "color": "#9467bd",
+        "size": 20
       },
       "anchor": "x",
       "anchoroffset": true,
       "side": "right",
-      "position": 0.85,
       "overlaying": "y"
     },
     "yaxis5": {
@@ -178,7 +191,6 @@
       "anchor": "x",
       "anchoroffset": true,
       "side": "right",
-      "position": 0.85,
       "overlaying": "y"
     },
     "yaxis6": {
@@ -192,7 +204,6 @@
       "anchor": "x",
       "anchoroffset": true,
       "side": "left",
-      "position": 0.85,
       "overlaying": "y"
     }
   }
