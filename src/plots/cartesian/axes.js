@@ -1899,8 +1899,6 @@ axes.doTicks = function(gd, axid, skipTitle) {
                 b: halfHeight,
                 t: halfHeight
             };
-            // For some strange reason, the four sides of the plot need slightly different margin calculations
-            // to be stable.
             if (ax.anchor == 'x') {
                 if (ax.side == 'right') {
                     margins.x = 1 + (ax._anchorOffset / fullLayout._size.w);
@@ -1908,9 +1906,9 @@ axes.doTicks = function(gd, axid, skipTitle) {
                     margins.r = bBox.width
                 }
                 else {
-                    margins.x = (bBox.left + halfWidth - fullLayout._size.l) / fullLayout._size.w
-                    margins.l = halfWidth;
-                    margins.r = halfWidth;
+                    margins.x = ax._anchorOffset / fullLayout._size.w
+                    margins.l = bBox.width;
+                    margins.r = 0;
                 }
             }
             else if (ax.anchor == 'y') {

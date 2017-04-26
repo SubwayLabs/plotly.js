@@ -140,6 +140,51 @@ module.exports = function draw(gd) {
 
     computeLegendDimensions(gd, groups, traces);
 
+    // If we have any anchored axes, we need to push the legend off of them
+    // (only activate if the legend positions are 0 or 1)
+    var anchorAxes = {
+        left: [],
+        right: [],
+        top: [],
+        bottom: []
+    }
+
+    Object.keys(fullLayout).map(function (key) {
+        var ax = fullLayout[key];
+        if (ax && ax.anchor && ax.anchoroffset && key.slice(1,5) === 'axis') {
+            anchorAxes[ax.side].push(ax)
+        }
+    });
+
+    opts._anchorShiftX = 0;
+    opts._anchorShiftY = 0;
+    if (opts.orientation === 'h') {
+        // Horizontal legend at the bottom of the plot
+        if (opts.y < 0.5) {
+            anchorAxes.bottom.map(function (ax) {
+                opts._anchorShiftY += ax._boundingBox.height
+            })
+        }
+        // Horizontal legend an the top of the plot
+        else {
+            anchorAxes.top.map(function (ax) {
+                opts._anchorShiftY -= ax._boundingBox.height
+            })
+        }
+    }
+    else {
+        if (opts.x < 0.5) {
+            anchorAxes.left.map(function (ax) {
+                opts._anchorShiftX += ax._boundingBox.width
+            })
+        }
+        else {
+            anchorAxes.right.map(function (ax) {
+                opts._anchorShiftX += ax._boundingBox.width
+            })
+        }
+    }
+
     // The height that the legend will eventually be clipped too
     var legendHeight = opts.height;
     if(opts.maxHeight != null) {
@@ -206,7 +251,7 @@ module.exports = function draw(gd) {
 
     // Set size and position of all the elements that make up a legend:
     // legend, background and border, scroll box and scroll bar
-    Drawing.setTranslate(legend, lx, ly);
+    Drawing.setTranslate(legend, lx + opts._anchorShiftX, ly + opts._anchorShiftY);
 
     var scrollBarYMax = legendHeight -
             constants.scrollBarHeight -
@@ -802,10 +847,10 @@ function expandMargin(gd) {
     Plots.autoMargin(gd, 'legend', {
         x: opts.x,
         y: opts.y,
-        l: opts.width * ({right: 1, center: 0.5}[xanchor] || 0),
-        r: opts.width * ({left: 1, center: 0.5}[xanchor] || 0),
-        b: clipHeight * ({top: 1, middle: 0.5}[yanchor] || 0),
-        t: clipHeight * ({bottom: 1, middle: 0.5}[yanchor] || 0)
+        l: (opts.width + Math.abs(opts._anchorShiftX)) * ({right: 1, center: 0.5}[xanchor] || 0),
+        r: (opts.width + Math.abs(opts._anchorShiftX)) * ({left: 1, center: 0.5}[xanchor] || 0),
+        b: (clipHeight + Math.abs(opts._anchorShiftY)) * ({top: 1, middle: 0.5}[yanchor] || 0),
+        t: (clipHeight + Math.abs(opts._anchorShiftY)) * ({bottom: 1, middle: 0.5}[yanchor] || 0)
     });
 }
 
