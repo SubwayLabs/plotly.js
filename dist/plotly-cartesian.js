@@ -38454,7 +38454,7 @@ axes.doTicks = function(gd, axid, skipTitle) {
             },
             axLetter = axid.charAt(0),
             gs = gd._fullLayout._size,
-            offsetBase = 1.5,
+            offsetBase = 1,
             fontSize = ax.titlefont.size,
             transform,
             counterAxis,
@@ -38473,8 +38473,8 @@ axes.doTicks = function(gd, axid, skipTitle) {
 
             x = ax._offset + ax._length / 2;
             y = counterAxis._offset + ((ax.side === 'top') ?
-                -10 - fontSize * (offsetBase + (ax.showticklabels ? 1 : 0)) :
-                counterAxis._length + 10 +
+                - fontSize * (offsetBase + (ax.showticklabels ? 1 : 0)) :
+                counterAxis._length +
                     fontSize * (offsetBase + (ax.showticklabels ? 1.5 : 0.5)));
 
             if(ax.rangeslider && ax.rangeslider.visible && ax._boundingBox) {
@@ -38493,9 +38493,9 @@ axes.doTicks = function(gd, axid, skipTitle) {
 
             y = ax._offset + ax._length / 2;
             x = counterAxis._offset + ((ax.side === 'right') ?
-                counterAxis._length + 10 +
+                counterAxis._length +
                     fontSize * (offsetBase + (ax.showticklabels ? 1 : 0.5)) :
-                -10 - fontSize * (offsetBase + (ax.showticklabels ? 0.5 : 0)));
+                - fontSize * (offsetBase + (ax.showticklabels ? 0.5 : 0)));
 
             // Shift the title over to match the anchor offset
             x += isNumeric(ax._anchorOffset) ? ax._anchorOffset : 0;
@@ -38639,7 +38639,7 @@ axes.doTicks = function(gd, axid, skipTitle) {
                 for(var i = 0; i < checkDepth; i++) {
                     if(priors[i]._anchorIndex === i) {
                         nextIndex = i + 1;
-                        nextOffset += priors[i]._boundingBox[offsetKey] + pad
+                        nextOffset += priors[i]._boundingBox[offsetKey] + (ax.titlefont.size)
                     }
                 }
                 // Set the anchor index and offset for this axis, depending on the side

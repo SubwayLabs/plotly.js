@@ -152,7 +152,7 @@ The `gl2d` partial bundle contains the `scatter`, `scattergl`, `pointcloud`, `he
 
 | Raw size | Minified size | Minified + gzip size |
 |------|-----------------|------------------------|
-| 2.7 MB | 1.1 MB | 358.3 kB |
+| 2.7 MB | 1.1 MB | 358.2 kB |
 
 ### plotly.js mapbox
 
