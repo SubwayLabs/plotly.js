@@ -55,7 +55,7 @@
         500000,
         600000
       ],
-      "name": "yaxis4 data",
+      "name": "yaxis4 data has a rather long title to take up space, and it can go on for quite some time",
       "yaxis": "y4",
       "type": "scatter"
     },
@@ -88,6 +88,186 @@
       "name": "yaxis6 data",
       "yaxis": "y4",
       "type": "scatter"
+    },
+    {
+      "x": [
+        5,
+        6,
+        7
+      ],
+      "y": [
+        400000,
+        500000,
+        600000
+      ],
+      "name": "yaxis7 data",
+      "yaxis": "y4",
+      "type": "scatter"
+    },
+    {
+      "x": [
+        5,
+        6,
+        7
+      ],
+      "y": [
+        400000,
+        500000,
+        600000
+      ],
+      "name": "yaxis8 data",
+      "yaxis": "y4",
+      "type": "scatter"
+    },
+    {
+      "x": [
+        5,
+        6,
+        7
+      ],
+      "y": [
+        400000,
+        500000,
+        600000
+      ],
+      "name": "yaxis9 data",
+      "yaxis": "y4",
+      "type": "scatter"
+    },
+    {
+      "x": [
+        5,
+        6,
+        7
+      ],
+      "y": [
+        400000,
+        500000,
+        600000
+      ],
+      "name": "yaxis10 data",
+      "yaxis": "y4",
+      "type": "scatter"
+    },
+    {
+      "x": [
+        5,
+        6,
+        7
+      ],
+      "y": [
+        400000,
+        500000,
+        600000
+      ],
+      "name": "yaxis11 data",
+      "yaxis": "y4",
+      "type": "scatter"
+    },
+    {
+      "x": [
+        5,
+        6,
+        7
+      ],
+      "y": [
+        400000,
+        500000,
+        600000
+      ],
+      "name": "yaxis12 data",
+      "yaxis": "y4",
+      "type": "scatter"
+    },
+    {
+      "x": [
+        5,
+        6,
+        7
+      ],
+      "y": [
+        400000,
+        500000,
+        600000
+      ],
+      "name": "yaxis13 data",
+      "yaxis": "y4",
+      "type": "scatter"
+    },
+    {
+      "x": [
+        5,
+        6,
+        7
+      ],
+      "y": [
+        400000,
+        500000,
+        600000
+      ],
+      "name": "yaxis14 data",
+      "yaxis": "y4",
+      "type": "scatter"
+    },
+    {
+      "x": [
+        5,
+        6,
+        7
+      ],
+      "y": [
+        400000,
+        500000,
+        600000
+      ],
+      "name": "yaxis15 data",
+      "yaxis": "y4",
+      "type": "scatter"
+    },
+    {
+      "x": [
+        5,
+        6,
+        7
+      ],
+      "y": [
+        400000,
+        500000,
+        600000
+      ],
+      "name": "yaxis16 data",
+      "yaxis": "y4",
+      "type": "scatter"
+    },
+    {
+      "x": [
+        5,
+        6,
+        7
+      ],
+      "y": [
+        400000,
+        500000,
+        600000
+      ],
+      "name": "yaxis17 data",
+      "yaxis": "y4",
+      "type": "scatter"
+    },
+    {
+      "x": [
+        5,
+        6,
+        7
+      ],
+      "y": [
+        400000,
+        500000,
+        600000
+      ],
+      "name": "yaxis18 data",
+      "yaxis": "y4",
+      "type": "scatter"
     }
   ],
   "layout": {
@@ -97,7 +277,9 @@
     "legend": {
         "orientation": "h",
         "y": 0,
-        "yanchor": "top"
+        "yanchor": "top",
+        "xanchor": "left",
+        "maxHeight": 150
     },
     "xaxis": {
       "anchoroffset": true,
