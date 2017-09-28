@@ -246,7 +246,7 @@ module.exports = function draw(gd) {
     else {
         if(ly + legendHeight > lyMax) ly = lyMax - legendHeight;
         if(ly < lyMin) ly = lyMin;
-        legendHeight = Math.min(lyMax - ly, opts.height);
+        legendHeight = Math.min(lyMax - ly, opts.height, opts.maxHeight);
     }
 
     // Set size and position of all the elements that make up a legend:
