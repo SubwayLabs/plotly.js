@@ -12,11 +12,12 @@
 var isNumeric = require('fast-isnumeric');
 
 var Axes = require('../../plots/cartesian/axes');
+var BADNUM = require('../../constants/numerical').BADNUM;
 
 var subTypes = require('./subtypes');
 var calcColorscale = require('./colorscale_calc');
 var arraysToCalcdata = require('./arrays_to_calcdata');
-
+var calcSelection = require('./calc_selection');
 
 module.exports = function calc(gd, trace) {
     var xa = Axes.getFromId(gd, trace.xaxis || 'x'),
@@ -114,7 +115,7 @@ module.exports = function calc(gd, trace) {
     var cd = new Array(serieslen);
     for(i = 0; i < serieslen; i++) {
         cd[i] = (isNumeric(x[i]) && isNumeric(y[i])) ?
-            {x: x[i], y: y[i]} : {x: false, y: false};
+            {x: x[i], y: y[i]} : {x: BADNUM, y: BADNUM};
 
         if(trace.ids) {
             cd[i].id = String(trace.ids[i]);
@@ -122,6 +123,7 @@ module.exports = function calc(gd, trace) {
     }
 
     arraysToCalcdata(cd, trace);
+    calcSelection(cd, trace);
 
     gd.firstscatter = false;
     return cd;

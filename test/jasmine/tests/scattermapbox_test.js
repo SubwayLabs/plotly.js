@@ -7,11 +7,12 @@ var convert = require('@src/traces/scattermapbox/convert');
 
 var createGraphDiv = require('../assets/create_graph_div');
 var destroyGraphDiv = require('../assets/destroy_graph_div');
-var customMatchers = require('../assets/custom_matchers');
+var fail = require('../assets/fail_test');
+var supplyAllDefaults = require('../assets/supply_defaults');
 
 var mouseEvent = require('../assets/mouse_event');
 var click = require('../assets/click');
-var HOVERMINTIME = require('@src/plots/cartesian/constants').HOVERMINTIME;
+var HOVERMINTIME = require('@src/components/fx').constants.HOVERMINTIME;
 
 function move(fromX, fromY, toX, toY, delay) {
     return new Promise(function(resolve) {
@@ -110,13 +111,9 @@ describe('scattermapbox defaults', function() {
 describe('scattermapbox convert', function() {
     'use strict';
 
-    beforeAll(function() {
-        jasmine.addMatchers(customMatchers);
-    });
-
     function _convert(trace) {
         var gd = { data: [trace] };
-        Plots.supplyDefaults(gd);
+        supplyAllDefaults(gd);
 
         var fullTrace = gd._fullData[0];
         Plots.doCalcdata(gd, fullTrace);
@@ -155,6 +152,8 @@ describe('scattermapbox convert', function() {
             stops: [ [0, 5], [1, 10], [2, 0] ]
         }, 'circle-radius stops');
 
+        expect(opts.circle.paint['circle-opacity']).toBe(0.7, 'circle-opacity');
+
         var circleProps = opts.circle.geojson.features.map(function(f) {
             return f.properties;
         });
@@ -167,6 +166,100 @@ describe('scattermapbox convert', function() {
             { 'circle-color': 1, 'circle-radius': 2 },
             { 'circle-color': 1, 'circle-radius': 2 }
         ], 'geojson feature properties');
+    });
+
+    it('should fill circle-opacity correctly', function() {
+        var opts = _convert(Lib.extendFlat({}, base, {
+            mode: 'markers',
+            marker: {
+                symbol: 'circle',
+                size: 10,
+                color: 'red',
+                opacity: [1, null, 0.5, '0.5', '1', 0, 0.8]
+            },
+            opacity: 0.5
+        }));
+
+        assertVisibility(opts, ['none', 'none', 'visible', 'none']);
+        expect(opts.circle.paint['circle-color']).toBe('red', 'circle-color');
+        expect(opts.circle.paint['circle-radius']).toBe(5, 'circle-radius');
+
+        expect(opts.circle.paint['circle-opacity']).toEqual({
+            property: 'circle-opacity',
+            stops: [ [0, 0.5], [1, 0], [2, 0.25], [6, 0.4] ]
+        }, 'circle-opacity stops');
+
+        var circleProps = opts.circle.geojson.features.map(function(f) {
+            return f.properties;
+        });
+
+
+        expect(circleProps).toEqual([
+            { 'circle-opacity': 0 },
+            { 'circle-opacity': 1 },
+            { 'circle-opacity': 2 },
+            // lat === null
+            // lon === null
+            { 'circle-opacity': 1 },
+            { 'circle-opacity': 6 },
+        ], 'geojson feature properties');
+    });
+
+    it('should fill circle-opacity correctly during selections', function() {
+        var _base = {
+            type: 'scattermapbox',
+            mode: 'markers',
+            lon: [-10, 30, 20],
+            lat: [45, 90, 180],
+            marker: {symbol: 'circle'}
+        };
+
+        var specs = [{
+            patch: {
+                selectedpoints: [1, 2]
+            },
+            expected: {stops: [[0, 0.2], [1, 1]], props: [0, 1, 1]}
+        }, {
+            patch: {
+                opacity: 0.5,
+                selectedpoints: [1, 2]
+            },
+            expected: {stops: [[0, 0.1], [1, 0.5]], props: [0, 1, 1]}
+        }, {
+            patch: {
+                marker: {opacity: 0.6},
+                selectedpoints: [1, 2]
+            },
+            expected: {stops: [[0, 0.12], [1, 0.6]], props: [0, 1, 1]}
+        }, {
+            patch: {
+                marker: {
+                    opacity: [0.5, 1, 0.6],
+                },
+                selectedpoints: [0, 2]
+            },
+            expected: {stops: [[0, 0.5], [1, 0.2], [2, 0.6]], props: [0, 1, 2]}
+        }, {
+            patch: {
+                marker: {opacity: [2, null, -0.6]},
+                selectedpoints: [0, 1, 2]
+            },
+            expected: {stops: [[0, 1], [1, 0]], props: [0, 1, 1]}
+        }];
+
+        specs.forEach(function(s, i) {
+            var msg0 = '- case ' + i + ' ';
+            var opts = _convert(Lib.extendDeep({}, _base, s.patch));
+
+            expect(opts.circle.paint['circle-opacity'].stops)
+                .toEqual(s.expected.stops, msg0 + 'stops');
+
+            var props = opts.circle.geojson.features.map(function(f) {
+                return f.properties['circle-opacity'];
+            });
+
+            expect(props).toEqual(s.expected.props, msg0 + 'props');
+        });
     });
 
     it('should generate correct output for fill + markers + lines traces', function() {
@@ -334,8 +427,6 @@ describe('@noCI scattermapbox hover', function() {
     var gd;
 
     beforeAll(function(done) {
-        jasmine.addMatchers(customMatchers);
-
         Plotly.setPlotConfig({
             mapboxAccessToken: require('@build/credentials.json').MAPBOX_ACCESS_TOKEN
         });
@@ -490,8 +581,50 @@ describe('@noCI scattermapbox hover', function() {
             done();
         });
     });
-});
 
+    it('should generate hover label (\'marker.color\' array case)', function(done) {
+        Plotly.restyle(gd, 'marker.color', [['red', 'blue', 'green']]).then(function() {
+            var out = hoverPoints(getPointData(gd), 11, 11)[0];
+
+            expect(out.color).toEqual('red');
+        })
+        .then(done);
+    });
+
+    it('should generate hover label (\'marker.color\' w/ colorscale case)', function(done) {
+        Plotly.restyle(gd, 'marker.color', [[10, 5, 30]]).then(function() {
+            var out = hoverPoints(getPointData(gd), 11, 11)[0];
+
+            expect(out.color).toEqual('rgb(245, 195, 157)');
+        })
+        .then(done);
+    });
+
+    it('should generate hover label (\'hoverinfo\' array case)', function(done) {
+        function check(expected) {
+            var out = hoverPoints(getPointData(gd), 11, 11)[0];
+            expect(out.extraText).toEqual(expected);
+        }
+
+        Plotly.restyle(gd, 'hoverinfo', [['lon', 'lat', 'lon+lat+name']]).then(function() {
+            check('lon: 10°');
+            return Plotly.restyle(gd, 'hoverinfo', [['lat', 'lon', 'name']]);
+        })
+        .then(function() {
+            check('lat: 10°');
+            return Plotly.restyle(gd, 'hoverinfo', [['text', 'lon', 'name']]);
+        })
+        .then(function() {
+            check('Apple');
+            return Plotly.restyle(gd, 'hoverinfo', [[null, 'lon', 'name']]);
+        })
+        .then(function() {
+            check('(10°, 10°)<br>Apple');
+        })
+        .catch(fail)
+        .then(done);
+    });
+});
 
 describe('@noCI Test plotly events on a scattermapbox plot:', function() {
     var mock = require('@mocks/mapbox_0.json');
@@ -517,8 +650,6 @@ describe('@noCI Test plotly events on a scattermapbox plot:', function() {
     }
 
     beforeAll(function(done) {
-        jasmine.addMatchers(customMatchers);
-
         Plotly.setPlotConfig({
             mapboxAccessToken: require('@build/credentials.json').MAPBOX_ACCESS_TOKEN
         });
@@ -567,14 +698,14 @@ describe('@noCI Test plotly events on a scattermapbox plot:', function() {
                 evt = futureData.event;
 
             expect(Object.keys(pt)).toEqual([
-                'data', 'fullData', 'curveNumber', 'pointNumber', 'lon', 'lat'
+                'data', 'fullData', 'curveNumber', 'pointNumber', 'pointIndex', 'lon', 'lat'
             ]);
 
             expect(pt.curveNumber).toEqual(0, 'points[0].curveNumber');
             expect(typeof pt.data).toEqual(typeof {}, 'points[0].data');
             expect(typeof pt.fullData).toEqual(typeof {}, 'points[0].fullData');
-            expect(pt.lat).toEqual(undefined, 'points[0].lat');
-            expect(pt.lon).toEqual(undefined, 'points[0].lon');
+            expect(pt.lat).toEqual(10, 'points[0].lat');
+            expect(pt.lon).toEqual(10, 'points[0].lon');
             expect(pt.pointNumber).toEqual(0, 'points[0].pointNumber');
 
             expect(evt.clientX).toEqual(pointPos[0], 'event.clientX');
@@ -611,14 +742,14 @@ describe('@noCI Test plotly events on a scattermapbox plot:', function() {
                 evt = futureData.event;
 
             expect(Object.keys(pt)).toEqual([
-                'data', 'fullData', 'curveNumber', 'pointNumber', 'lon', 'lat'
+                'data', 'fullData', 'curveNumber', 'pointNumber', 'pointIndex', 'lon', 'lat'
             ]);
 
             expect(pt.curveNumber).toEqual(0, 'points[0].curveNumber');
             expect(typeof pt.data).toEqual(typeof {}, 'points[0].data');
             expect(typeof pt.fullData).toEqual(typeof {}, 'points[0].fullData');
-            expect(pt.lat).toEqual(undefined, 'points[0].lat');
-            expect(pt.lon).toEqual(undefined, 'points[0].lon');
+            expect(pt.lat).toEqual(10, 'points[0].lat');
+            expect(pt.lon).toEqual(10, 'points[0].lon');
             expect(pt.pointNumber).toEqual(0, 'points[0].pointNumber');
 
             expect(evt.clientX).toEqual(pointPos[0], 'event.clientX');
@@ -648,14 +779,14 @@ describe('@noCI Test plotly events on a scattermapbox plot:', function() {
                 evt = futureData.event;
 
             expect(Object.keys(pt)).toEqual([
-                'data', 'fullData', 'curveNumber', 'pointNumber', 'lon', 'lat'
+                'data', 'fullData', 'curveNumber', 'pointNumber', 'pointIndex', 'lon', 'lat'
             ]);
 
             expect(pt.curveNumber).toEqual(0, 'points[0].curveNumber');
             expect(typeof pt.data).toEqual(typeof {}, 'points[0].data');
             expect(typeof pt.fullData).toEqual(typeof {}, 'points[0].fullData');
-            expect(pt.lat).toEqual(undefined, 'points[0].lat');
-            expect(pt.lon).toEqual(undefined, 'points[0].lon');
+            expect(pt.lat).toEqual(10, 'points[0].lat');
+            expect(pt.lon).toEqual(10, 'points[0].lon');
             expect(pt.pointNumber).toEqual(0, 'points[0].pointNumber');
 
             expect(evt.clientX).toEqual(pointPos[0], 'event.clientX');
@@ -680,14 +811,14 @@ describe('@noCI Test plotly events on a scattermapbox plot:', function() {
                     evt = futureData.event;
 
                 expect(Object.keys(pt)).toEqual([
-                    'data', 'fullData', 'curveNumber', 'pointNumber', 'lon', 'lat'
+                    'data', 'fullData', 'curveNumber', 'pointNumber', 'pointIndex', 'lon', 'lat'
                 ]);
 
                 expect(pt.curveNumber).toEqual(0, 'points[0].curveNumber');
                 expect(typeof pt.data).toEqual(typeof {}, 'points[0].data');
                 expect(typeof pt.fullData).toEqual(typeof {}, 'points[0].fullData');
-                expect(pt.lat).toEqual(undefined, 'points[0].lat');
-                expect(pt.lon).toEqual(undefined, 'points[0].lon');
+                expect(pt.lat).toEqual(10, 'points[0].lat');
+                expect(pt.lon).toEqual(10, 'points[0].lon');
                 expect(pt.pointNumber).toEqual(0, 'points[0].pointNumber');
 
                 expect(evt.clientX).toEqual(nearPos[0], 'event.clientX');

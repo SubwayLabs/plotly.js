@@ -20,6 +20,9 @@ var Color = require('../../components/color');
 var Drawing = require('../../components/drawing');
 var setCursor = require('../../lib/setcursor');
 var dragElement = require('../../components/dragelement');
+var FROM_TL = require('../../constants/alignment').FROM_TL;
+
+var Plots = require('../plots');
 
 var doTicks = require('./axes').doTicks;
 var getFromId = require('./axis_ids').getFromId;
@@ -29,7 +32,6 @@ var scaleZoom = require('./scale_zoom');
 var constants = require('./constants');
 var MINDRAG = constants.MINDRAG;
 var MINZOOM = constants.MINZOOM;
-
 
 // flag for showing "doubleclick to zoom out" only at the beginning
 var SHOWZOOMOUTTIP = true;
@@ -130,7 +132,6 @@ module.exports = function dragBox(gd, plotinfo, x, y, w, h, ns, ew) {
         element: dragger,
         gd: gd,
         plotinfo: plotinfo,
-        doubleclick: doubleClick,
         prepFn: function(e, startX, startY) {
             var dragModeNow = gd._fullLayout.dragmode;
 
@@ -139,7 +140,10 @@ module.exports = function dragBox(gd, plotinfo, x, y, w, h, ns, ew) {
                 // to pan (or to zoom if it already is pan) on shift
                 if(e.shiftKey) {
                     if(dragModeNow === 'pan') dragModeNow = 'zoom';
-                    else dragModeNow = 'pan';
+                    else if(!isSelectOrLasso(dragModeNow)) dragModeNow = 'pan';
+                }
+                else if(e.ctrlKey) {
+                    dragModeNow = 'pan';
                 }
             }
             // all other draggers just pan
@@ -183,6 +187,9 @@ module.exports = function dragBox(gd, plotinfo, x, y, w, h, ns, ew) {
         zoomMode,
         zb,
         corners;
+
+    // collected changes to be made to the plot by relayout at the end
+    var updates = {};
 
     function zoomPrep(e, startX, startY) {
         var dragBBox = dragger.getBoundingClientRect();
@@ -282,14 +289,14 @@ module.exports = function dragBox(gd, plotinfo, x, y, w, h, ns, ew) {
         }
 
         // TODO: edit linked axes in zoomAxRanges and in dragTail
-        if(zoomMode === 'xy' || zoomMode === 'x') zoomAxRanges(xa, box.l / pw, box.r / pw, xaLinked);
-        if(zoomMode === 'xy' || zoomMode === 'y') zoomAxRanges(ya, (ph - box.b) / ph, (ph - box.t) / ph, yaLinked);
+        if(zoomMode === 'xy' || zoomMode === 'x') zoomAxRanges(xa, box.l / pw, box.r / pw, updates, xaLinked);
+        if(zoomMode === 'xy' || zoomMode === 'y') zoomAxRanges(ya, (ph - box.b) / ph, (ph - box.t) / ph, updates, yaLinked);
 
         removeZoombox(gd);
         dragTail(zoomMode);
 
         if(SHOWZOOMOUTTIP && gd.data && gd._context.showTips) {
-            Lib.notifier('Double-click to<br>zoom back out', 'long');
+            Lib.notifier(Lib._(gd, 'Double-click to zoom back out'), 'long');
             SHOWZOOMOUTTIP = false;
         }
     }
@@ -316,7 +323,8 @@ module.exports = function dragBox(gd, plotinfo, x, y, w, h, ns, ew) {
 
             if(gd._context.showAxisRangeEntryBoxes) {
                 d3.select(dragger)
-                    .call(svgTextUtils.makeEditable, null, {
+                    .call(svgTextUtils.makeEditable, {
+                        gd: gd,
                         immediate: true,
                         background: fullLayout.paper_bgcolor,
                         text: String(initialText),
@@ -335,11 +343,11 @@ module.exports = function dragBox(gd, plotinfo, x, y, w, h, ns, ew) {
     }
 
     // scroll zoom, on all draggers except corners
-    var scrollViewBox = [0, 0, pw, ph],
-        // wait a little after scrolling before redrawing
-        redrawTimer = null,
-        REDRAWDELAY = constants.REDRAWDELAY,
-        mainplot = plotinfo.mainplot ?
+    var scrollViewBox = [0, 0, pw, ph];
+    // wait a little after scrolling before redrawing
+    var redrawTimer = null;
+    var REDRAWDELAY = constants.REDRAWDELAY;
+    var mainplot = plotinfo.mainplot ?
             fullLayout._plots[plotinfo.mainplot] : plotinfo;
 
     function zoomWheel(e) {
@@ -375,7 +383,7 @@ module.exports = function dragBox(gd, plotinfo, x, y, w, h, ns, ew) {
             return;
         }
 
-        var zoom = Math.exp(-Math.min(Math.max(wheelDelta, -20), 20) / 100),
+        var zoom = Math.exp(-Math.min(Math.max(wheelDelta, -20), 20) / 200),
             gbb = mainplot.draglayer.select('.nsewdrag')
                 .node().getBoundingClientRect(),
             xfrac = (e.clientX - gbb.left) / gbb.width,
@@ -521,9 +529,12 @@ module.exports = function dragBox(gd, plotinfo, x, y, w, h, ns, ew) {
         }
 
         updateSubplots([x0, y0, pw - dx, ph - dy]);
+
         ticksAndAnnotations(yActive, xActive);
     }
 
+    // Draw ticks and annotations (and other components) when ranges change.
+    // Also records the ranges that have changed for use by update at the end.
     function ticksAndAnnotations(ns, ew) {
         var activeAxIds = [],
             i;
@@ -543,8 +554,13 @@ module.exports = function dragBox(gd, plotinfo, x, y, w, h, ns, ew) {
             pushActiveAxIds(yaLinked);
         }
 
+        updates = {};
         for(i = 0; i < activeAxIds.length; i++) {
-            doTicks(gd, activeAxIds[i], true);
+            var axId = activeAxIds[i];
+            doTicks(gd, axId, true);
+            var ax = getFromId(gd, axId);
+            updates[ax._name + '.range[0]'] = ax.range[0];
+            updates[ax._name + '.range[1]'] = ax.range[1];
         }
 
         function redrawObjs(objArray, method, shortCircuit) {
@@ -641,24 +657,17 @@ module.exports = function dragBox(gd, plotinfo, x, y, w, h, ns, ew) {
     function dragTail(zoommode) {
         if(zoommode === undefined) zoommode = (ew ? 'x' : '') + (ns ? 'y' : '');
 
-        var attrs = {};
-        // revert to the previous axis settings, then apply the new ones
-        // through relayout - this lets relayout manage undo/redo
-        var axesToModify;
-        if(zoommode === 'xy') axesToModify = xa.concat(ya);
-        else if(zoommode === 'x') axesToModify = xa;
-        else if(zoommode === 'y') axesToModify = ya;
-
-        for(var i = 0; i < axesToModify.length; i++) {
-            var axi = axesToModify[i];
-            if(axi._r[0] !== axi.range[0]) attrs[axi._name + '.range[0]'] = axi.range[0];
-            if(axi._r[1] !== axi.range[1]) attrs[axi._name + '.range[1]'] = axi.range[1];
-
-            axi.range = axi._input.range = axi._r.slice();
-        }
-
+        // put the subplot viewboxes back to default (Because we're going to)
+        // be repositioning the data in the relayout. But DON'T call
+        // ticksAndAnnotations again - it's unnecessary and would overwrite `updates`
         updateSubplots([0, 0, pw, ph]);
-        Plotly.relayout(gd, attrs);
+
+        // since we may have been redrawing some things during the drag, we may have
+        // accumulated MathJax promises - wait for them before we relayout.
+        Lib.syncOrAsync([
+            Plots.previousPromises,
+            function() { Plotly.relayout(gd, updates); }
+        ], gd);
     }
 
     // updateSubplots - find all plot viewboxes that should be
@@ -693,22 +702,47 @@ module.exports = function dragBox(gd, plotinfo, x, y, w, h, ns, ew) {
             if(scaleFactor) {
                 ax.range = ax._r.slice();
                 scaleZoom(ax, scaleFactor);
-                return ax._length * (1 - scaleFactor) / 2;
+                return getShift(ax, scaleFactor);
             }
             return 0;
         }
 
-        for(i = 0; i < subplots.length; i++) {
+        function getShift(ax, scaleFactor) {
+            return ax._length * (1 - scaleFactor) * FROM_TL[ax.constraintoward || 'middle'];
+        }
 
+        // clear gl frame, if any, since we preserve drawing buffer
+        // FIXME: code duplication with cartesian.plot
+        if(fullLayout._glcanvas && fullLayout._glcanvas.size()) {
+            fullLayout._glcanvas.each(function(d) {
+                if(d.regl) {
+                    d.regl.clear({
+                        color: true
+                    });
+                }
+            });
+        }
+
+        for(i = 0; i < subplots.length; i++) {
             var subplot = plotinfos[subplots[i]],
                 xa2 = subplot.xaxis,
                 ya2 = subplot.yaxis,
                 editX2 = editX && !xa2.fixedrange && (xa.indexOf(xa2) !== -1),
                 editY2 = editY && !ya2.fixedrange && (ya.indexOf(ya2) !== -1);
 
+            // scattergl translate
+            if(subplot._scene && subplot._scene.update) {
+                // FIXME: possibly we could update axis internal _r and _rl here
+                var xaRange = Lib.simpleMap(xa2.range, xa2.r2l),
+                    yaRange = Lib.simpleMap(ya2.range, ya2.r2l);
+                subplot._scene.update(
+                    {range: [xaRange[0], yaRange[0], xaRange[1], yaRange[1]]}
+                );
+            }
+
             if(editX2) {
                 xScaleFactor2 = xScaleFactor;
-                clipDx = viewBox[0];
+                clipDx = ew ? viewBox[0] : getShift(xa2, xScaleFactor2);
             }
             else {
                 xScaleFactor2 = getLinkedScaleFactor(xa2);
@@ -717,7 +751,7 @@ module.exports = function dragBox(gd, plotinfo, x, y, w, h, ns, ew) {
 
             if(editY2) {
                 yScaleFactor2 = yScaleFactor;
-                clipDy = viewBox[1];
+                clipDy = ns ? viewBox[1] : getShift(ya2, yScaleFactor2);
             }
             else {
                 yScaleFactor2 = getLinkedScaleFactor(ya2);
@@ -734,19 +768,26 @@ module.exports = function dragBox(gd, plotinfo, x, y, w, h, ns, ew) {
             var plotDx = xa2._offset - clipDx / xScaleFactor2,
                 plotDy = ya2._offset - clipDy / yScaleFactor2;
 
-            fullLayout._defs.selectAll('#' + subplot.clipId)
+            fullLayout._defs.select('#' + subplot.clipId + '> rect')
                 .call(Drawing.setTranslate, clipDx, clipDy)
                 .call(Drawing.setScale, xScaleFactor2, yScaleFactor2);
 
+            var traceGroups = subplot.plot
+                .selectAll('.scatterlayer .trace, .boxlayer .trace, .violinlayer .trace');
+
             subplot.plot
                 .call(Drawing.setTranslate, plotDx, plotDy)
-                .call(Drawing.setScale, 1 / xScaleFactor2, 1 / yScaleFactor2)
+                .call(Drawing.setScale, 1 / xScaleFactor2, 1 / yScaleFactor2);
 
-                // This is specifically directed at scatter traces, applying an inverse
-                // scale to individual points to counteract the scale of the trace
-                // as a whole:
-                .select('.scatterlayer').selectAll('.points').selectAll('.point')
-                    .call(Drawing.setPointGroupScale, xScaleFactor2, yScaleFactor2);
+            // This is specifically directed at marker points in scatter, box and violin traces,
+            // applying an inverse scale to individual points to counteract
+            // the scale of the trace as a whole:
+            traceGroups.selectAll('.point')
+                .call(Drawing.setPointGroupScale, xScaleFactor2, yScaleFactor2);
+            traceGroups.selectAll('.textpoint')
+                .call(Drawing.setTextPointsScale, xScaleFactor2, yScaleFactor2);
+            traceGroups
+                .call(Drawing.hideOutsideRangePoints, subplot);
         }
     }
 
@@ -796,7 +837,7 @@ function getEndText(ax, end) {
     }
 }
 
-function zoomAxRanges(axList, r0Fraction, r1Fraction, linkedAxes) {
+function zoomAxRanges(axList, r0Fraction, r1Fraction, updates, linkedAxes) {
     var i,
         axi,
         axRangeLinear0,
@@ -812,13 +853,15 @@ function zoomAxRanges(axList, r0Fraction, r1Fraction, linkedAxes) {
             axi.l2r(axRangeLinear0 + axRangeLinearSpan * r0Fraction),
             axi.l2r(axRangeLinear0 + axRangeLinearSpan * r1Fraction)
         ];
+        updates[axi._name + '.range[0]'] = axi.range[0];
+        updates[axi._name + '.range[1]'] = axi.range[1];
     }
 
     // zoom linked axes about their centers
     if(linkedAxes && linkedAxes.length) {
         var linkedR0Fraction = (r0Fraction + (1 - r1Fraction)) / 2;
 
-        zoomAxRanges(linkedAxes, linkedR0Fraction, 1 - linkedR0Fraction);
+        zoomAxRanges(linkedAxes, linkedR0Fraction, 1 - linkedR0Fraction, updates);
     }
 }
 
@@ -906,9 +949,7 @@ function removeZoombox(gd) {
 }
 
 function isSelectOrLasso(dragmode) {
-    var modes = ['lasso', 'select'];
-
-    return modes.indexOf(dragmode) !== -1;
+    return dragmode === 'lasso' || dragmode === 'select';
 }
 
 function xCorners(box, y0) {

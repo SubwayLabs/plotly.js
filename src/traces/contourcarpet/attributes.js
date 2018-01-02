@@ -9,6 +9,8 @@
 'use strict';
 
 var heatmapAttrs = require('../heatmap/attributes');
+var contourAttrs = require('../contour/attributes');
+var contourContourAttrs = contourAttrs.contours;
 var scatterAttrs = require('../scatter/attributes');
 var colorscaleAttrs = require('../../components/colorscale/attributes');
 var colorbarAttrs = require('../../components/colorbar/attributes');
@@ -22,6 +24,7 @@ module.exports = extendFlat({}, {
     carpet: {
         valType: 'string',
         role: 'info',
+        editType: 'calc',
         description: [
             'The `carpet` of the carpet axes on which this contour trace lies'
         ].join(' ')
@@ -43,6 +46,7 @@ module.exports = extendFlat({}, {
         flags: ['lines', 'fill'],
         extras: ['none'],
         role: 'info',
+        editType: 'calc',
         description: ['The mode.'].join(' ')
     },
 
@@ -51,6 +55,7 @@ module.exports = extendFlat({}, {
     fillcolor: {
         valType: 'color',
         role: 'style',
+        editType: 'calc',
         description: [
             'Sets the fill color.',
             'Defaults to a half-transparent variant of the line color,',
@@ -58,30 +63,8 @@ module.exports = extendFlat({}, {
         ].join(' ')
     },
 
-    autocontour: {
-        valType: 'boolean',
-        dflt: true,
-        role: 'style',
-        description: [
-            'Determines whether or not the contour level attributes are',
-            'picked by an algorithm.',
-            'If *true*, the number of contour levels can be set in `ncontours`.',
-            'If *false*, set the contour level attributes in `contours`.'
-        ].join(' ')
-    },
-    ncontours: {
-        valType: 'integer',
-        dflt: 15,
-        min: 1,
-        role: 'style',
-        description: [
-            'Sets the maximum number of contour levels. The actual number',
-            'of contours will be chosen automatically to be less than or',
-            'equal to the value of `ncontours`.',
-            'Has an effect only if `autocontour` is *true* or if',
-            '`contours.size` is missing.'
-        ].join(' ')
-    },
+    autocontour: contourAttrs.autocontour,
+    ncontours: contourAttrs.ncontours,
 
     contours: {
         type: {
@@ -89,6 +72,7 @@ module.exports = extendFlat({}, {
             values: ['levels', 'constraint'],
             dflt: 'levels',
             role: 'info',
+            editType: 'calc',
             description: [
                 'If `levels`, the data is represented as a contour plot with multiple',
                 'levels displayed. If `constraint`, the data is represented as constraints',
@@ -96,39 +80,16 @@ module.exports = extendFlat({}, {
                 '`value` parameters.'
             ].join(' ')
         },
-        start: {
-            valType: 'number',
-            dflt: null,
-            role: 'style',
-            description: [
-                'Sets the starting contour level value.',
-                'Must be less than `contours.end`'
-            ].join(' ')
-        },
-        end: {
-            valType: 'number',
-            dflt: null,
-            role: 'style',
-            description: [
-                'Sets the end contour level value.',
-                'Must be more than `contours.start`'
-            ].join(' ')
-        },
-        size: {
-            valType: 'number',
-            dflt: null,
-            min: 0,
-            role: 'style',
-            description: [
-                'Sets the step between each contour level.',
-                'Must be positive.'
-            ].join(' ')
-        },
+        start: contourContourAttrs.start,
+        end: contourContourAttrs.end,
+        size: contourContourAttrs.size,
         coloring: {
+            // from contourAttrs.contours.coloring but no 'heatmap' option
             valType: 'enumerated',
             values: ['fill', 'lines', 'none'],
             dflt: 'fill',
             role: 'style',
+            editType: 'calc',
             description: [
                 'Determines the coloring method showing the contour values.',
                 'If *fill*, coloring is done evenly between each contour level',
@@ -136,20 +97,16 @@ module.exports = extendFlat({}, {
                 'If *none*, no coloring is applied on this trace.'
             ].join(' ')
         },
-        showlines: {
-            valType: 'boolean',
-            dflt: true,
-            role: 'style',
-            description: [
-                'Determines whether or not the contour lines are drawn.',
-                'Has only an effect if `contours.coloring` is set to *fill*.'
-            ].join(' ')
-        },
+        showlines: contourContourAttrs.showlines,
+        showlabels: contourContourAttrs.showlabels,
+        labelfont: contourContourAttrs.labelfont,
+        labelformat: contourContourAttrs.labelformat,
         operation: {
             valType: 'enumerated',
             values: [].concat(constants.INEQUALITY_OPS).concat(constants.INTERVAL_OPS).concat(constants.SET_OPS),
             role: 'info',
             dflt: '=',
+            editType: 'calc',
             description: [
                 'Sets the filter operation.',
 
@@ -174,9 +131,9 @@ module.exports = extendFlat({}, {
         },
         value: {
             valType: 'any',
-            arrayOk: true,
             dflt: 0,
             role: 'info',
+            editType: 'calc',
             description: [
                 'Sets the value or values by which to filter by.',
 
@@ -197,7 +154,8 @@ module.exports = extendFlat({}, {
                 '*value* is expected to be an array with as many items as',
                 'the desired set elements.'
             ].join(' ')
-        }
+        },
+        editType: 'calc'
     },
 
     line: {
@@ -214,7 +172,8 @@ module.exports = extendFlat({}, {
                 'Sets the amount of smoothing for the contour lines,',
                 'where *0* corresponds to no smoothing.'
             ].join(' ')
-        })
+        }),
+        editType: 'plot'
     }
 },
     colorscaleAttrs,

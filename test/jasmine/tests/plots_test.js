@@ -1,9 +1,12 @@
 var Plotly = require('@lib/index');
 var Plots = require('@src/plots/plots');
+var Lib = require('@src/lib');
 
 var d3 = require('d3');
 var createGraphDiv = require('../assets/create_graph_div');
 var destroyGraphDiv = require('../assets/destroy_graph_div');
+var supplyAllDefaults = require('../assets/supply_defaults');
+var failTest = require('../assets/fail_test');
 
 
 describe('Test Plots', function() {
@@ -19,7 +22,7 @@ describe('Test Plots', function() {
                     }
                 };
 
-            Plots.supplyDefaults(gd);
+            supplyAllDefaults(gd);
             expect(gd.layout.height).toBe(height);
             expect(gd._fullLayout).toBeDefined();
             expect(gd._fullLayout.height).toBe(height);
@@ -38,12 +41,17 @@ describe('Test Plots', function() {
 
             var oldFullLayout = {
                 _plots: { xy: { plot: {} } },
-                xaxis: { c2p: function() {} },
-                yaxis: { _m: 20 },
+                xaxis: { c2p: function() {}, layer: 'above traces' },
+                yaxis: { _m: 20, layer: 'above traces' },
                 scene: { _scene: {} },
                 annotations: [{ _min: 10, }, { _max: 20 }],
                 someFunc: function() {}
             };
+
+            Lib.extendFlat(oldFullLayout._plots.xy, {
+                xaxis: oldFullLayout.xaxis,
+                yaxis: oldFullLayout.yaxis
+            });
 
             var newData = [{
                 type: 'scatter3d',
@@ -64,7 +72,7 @@ describe('Test Plots', function() {
                 layout: newLayout
             };
 
-            Plots.supplyDefaults(gd);
+            supplyAllDefaults(gd);
 
             expect(gd._fullData[0].z).toBe(newData[0].z);
             expect(gd._fullData[1].z).toBe(newData[1].z);
@@ -88,7 +96,7 @@ describe('Test Plots', function() {
             var data = [trace0, trace1];
             var gd = { data: data };
 
-            Plots.supplyDefaults(gd);
+            supplyAllDefaults(gd);
 
             expect(gd.data).toBe(data);
 
@@ -110,7 +118,7 @@ describe('Test Plots', function() {
 
         function testSanitizeMarginsHasBeenCalledOnlyOnce(gd) {
             spyOn(Plots, 'sanitizeMargins').and.callThrough();
-            Plots.supplyDefaults(gd);
+            supplyAllDefaults(gd);
             expect(Plots.sanitizeMargins).toHaveBeenCalledTimes(1);
         }
 
@@ -153,7 +161,14 @@ describe('Test Plots', function() {
             layoutOut,
             expected;
 
-        var supplyLayoutDefaults = Plots.supplyLayoutGlobalDefaults;
+        var formatObj = require('@src/locale-en').format;
+
+        function supplyLayoutDefaults(layoutIn, layoutOut) {
+            layoutOut._dfltTitle = {
+                plot: 'ppplot'
+            };
+            return Plots.supplyLayoutGlobalDefaults(layoutIn, layoutOut, formatObj);
+        }
 
         beforeEach(function() {
             layoutOut = {};
@@ -357,7 +372,7 @@ describe('Test Plots', function() {
                 .then(done);
         });
 
-        afterEach(destroyGraphDiv);
+        afterAll(destroyGraphDiv);
 
         it('should resize the plot clip', function() {
             var uid = gd._fullLayout._uid;
@@ -373,6 +388,7 @@ describe('Test Plots', function() {
 
         it('should resize the main svgs', function() {
             var mainSvgs = document.getElementsByClassName('main-svg');
+            expect(mainSvgs.length).toBe(2);
 
             for(var i = 0; i < mainSvgs.length; i++) {
                 var svg = mainSvgs[i],
@@ -385,6 +401,9 @@ describe('Test Plots', function() {
         });
 
         it('should update the axis scales', function() {
+            var mainSvgs = document.getElementsByClassName('main-svg');
+            expect(mainSvgs.length).toBe(2);
+
             var fullLayout = gd._fullLayout,
                 plotinfo = fullLayout._plots.xy;
 
@@ -394,6 +413,18 @@ describe('Test Plots', function() {
             expect(plotinfo.xaxis._length).toEqual(240);
             expect(plotinfo.yaxis._length).toEqual(220);
         });
+
+        it('should allow resizing by plot ID', function(done) {
+            var mainSvgs = document.getElementsByClassName('main-svg');
+            expect(mainSvgs.length).toBe(2);
+
+            expect(typeof gd.id).toBe('string');
+            expect(gd.id).toBeTruthy();
+
+            Plotly.Plots.resize(gd.id)
+            .catch(failTest)
+            .then(done);
+        });
     });
 
     describe('Plots.purge', function() {
@@ -402,6 +433,19 @@ describe('Test Plots', function() {
         beforeEach(function(done) {
             gd = createGraphDiv();
             Plotly.plot(gd, [{ x: [1, 2, 3], y: [2, 3, 4] }], {}).then(done);
+
+            // hacky: simulate getting stuck with these flags due to an error
+            // see #2055 and commit 6a44a9a - before fixing that error, we would
+            // end up in an inconsistent state that prevented future Plotly.newPlot
+            // because _dragging and _dragged were not cleared by purge.
+            gd._dragging = true;
+            gd._dragged = true;
+            gd._hoverdata = true;
+            gd._snapshotInProgress = true;
+            gd._editing = true;
+            gd._replotPending = true;
+            gd._mouseDownTime = true;
+            gd._legendMouseDownTime = true;
         });
 
         afterEach(destroyGraphDiv);
@@ -410,36 +454,23 @@ describe('Test Plots', function() {
             var expectedKeys = [
                 '_ev', '_internalEv', 'on', 'once', 'removeListener', 'removeAllListeners',
                 '_internalOn', '_internalOnce', '_removeInternalListener',
-                '_removeAllInternalListeners', 'emit', '_context', '_replotPending',
-                '_hmpixcount', '_hmlumcount', '_mouseDownTime', '_legendMouseDownTime',
+                '_removeAllInternalListeners', 'emit', '_context'
+            ];
+
+            var expectedUndefined = [
+                'data', 'layout', '_fullData', '_fullLayout', 'calcdata', 'framework',
+                'empty', 'fid', 'undoqueue', 'undonum', 'autoplay', 'changed',
+                '_promises', '_redrawTimer', 'firstscatter',
+                '_transitionData', '_transitioning', '_hmpixcount', '_hmlumcount',
+                '_dragging', '_dragged', '_hoverdata', '_snapshotInProgress', '_editing',
+                '_replotPending', '_mouseDownTime', '_legendMouseDownTime'
             ];
 
             Plots.purge(gd);
-            expect(Object.keys(gd)).toEqual(expectedKeys);
-            expect(gd.data).toBeUndefined();
-            expect(gd.layout).toBeUndefined();
-            expect(gd._fullData).toBeUndefined();
-            expect(gd._fullLayout).toBeUndefined();
-            expect(gd.calcdata).toBeUndefined();
-            expect(gd.framework).toBeUndefined();
-            expect(gd.empty).toBeUndefined();
-            expect(gd.fid).toBeUndefined();
-            expect(gd.undoqueue).toBeUndefined();
-            expect(gd.undonum).toBeUndefined();
-            expect(gd.autoplay).toBeUndefined();
-            expect(gd.changed).toBeUndefined();
-            expect(gd._tester).toBeUndefined();
-            expect(gd._testref).toBeUndefined();
-            expect(gd._promises).toBeUndefined();
-            expect(gd._redrawTimer).toBeUndefined();
-            expect(gd.firstscatter).toBeUndefined();
-            expect(gd.hmlumcount).toBeUndefined();
-            expect(gd.hmpixcount).toBeUndefined();
-            expect(gd.numboxes).toBeUndefined();
-            expect(gd._hoverTimer).toBeUndefined();
-            expect(gd._lastHoverTime).toBeUndefined();
-            expect(gd._transitionData).toBeUndefined();
-            expect(gd._transitioning).toBeUndefined();
+            expect(Object.keys(gd).sort()).toEqual(expectedKeys.sort());
+            expectedUndefined.forEach(function(key) {
+                expect(gd[key]).toBeUndefined(key);
+            });
         });
     });
 

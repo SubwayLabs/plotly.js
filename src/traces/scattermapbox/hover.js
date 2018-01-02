@@ -9,8 +9,9 @@
 
 'use strict';
 
-var Fx = require('../../plots/cartesian/graph_interact');
+var Fx = require('../../components/fx');
 var getTraceColor = require('../scatter/get_trace_color');
+var fillHoverText = require('../scatter/fill_hover_text');
 var BADNUM = require('../../constants/numerical').BADNUM;
 
 module.exports = function hoverPoints(pointData, xval, yval) {
@@ -60,19 +61,20 @@ module.exports = function hoverPoints(pointData, xval, yval) {
     pointData.y1 = yc + rad;
 
     pointData.color = getTraceColor(trace, di);
-    pointData.extraText = getExtraText(trace, di);
+    pointData.extraText = getExtraText(trace, di, cd[0].t.labels);
 
     return [pointData];
 };
 
-function getExtraText(trace, di) {
-    var hoverinfo = trace.hoverinfo.split('+'),
-        isAll = (hoverinfo.indexOf('all') !== -1),
-        hasLon = (hoverinfo.indexOf('lon') !== -1),
-        hasLat = (hoverinfo.indexOf('lat') !== -1);
+function getExtraText(trace, di, labels) {
+    var hoverinfo = di.hi || trace.hoverinfo;
+    var parts = hoverinfo.split('+');
+    var isAll = parts.indexOf('all') !== -1;
+    var hasLon = parts.indexOf('lon') !== -1;
+    var hasLat = parts.indexOf('lat') !== -1;
 
-    var lonlat = di.lonlat,
-        text = [];
+    var lonlat = di.lonlat;
+    var text = [];
 
     // TODO should we use a mock axis to format hover?
     // If so, we'll need to make precision be zoom-level dependent
@@ -82,19 +84,14 @@ function getExtraText(trace, di) {
 
     if(isAll || (hasLon && hasLat)) {
         text.push('(' + format(lonlat[0]) + ', ' + format(lonlat[1]) + ')');
+    } else if(hasLon) {
+        text.push(labels.lon + format(lonlat[0]));
+    } else if(hasLat) {
+        text.push(labels.lat + format(lonlat[1]));
     }
-    else if(hasLon) text.push('lon: ' + format(lonlat[0]));
-    else if(hasLat) text.push('lat: ' + format(lonlat[1]));
 
-    if(isAll || hoverinfo.indexOf('text') !== -1) {
-        var tx;
-
-        if(di.htx) tx = di.htx;
-        else if(trace.hovertext) tx = trace.hovertext;
-        else if(di.tx) tx = di.tx;
-        else if(trace.text) tx = trace.text;
-
-        if(!Array.isArray(tx)) text.push(tx);
+    if(isAll || parts.indexOf('text') !== -1) {
+        fillHoverText(di, trace, text);
     }
 
     return text.join('<br>');

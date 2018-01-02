@@ -22,7 +22,6 @@ var handleTextDefaults = require('./text_defaults');
 var handleFillColorDefaults = require('./fillcolor_defaults');
 var errorBarsSupplyDefaults = require('../../components/errorbars/defaults');
 
-
 module.exports = function supplyDefaults(traceIn, traceOut, defaultColor, layout) {
     function coerce(attr, dflt) {
         return Lib.coerce(traceIn, traceOut, attributes, attr, dflt);
@@ -36,11 +35,9 @@ module.exports = function supplyDefaults(traceIn, traceOut, defaultColor, layout
         return;
     }
 
-    coerce('customdata');
     coerce('text');
     coerce('hovertext');
     coerce('mode', defaultMode);
-    coerce('ids');
 
     if(subTypes.hasLines(traceOut)) {
         handleLineDefaults(traceIn, traceOut, defaultColor, layout, coerce);
@@ -50,7 +47,7 @@ module.exports = function supplyDefaults(traceIn, traceOut, defaultColor, layout
     }
 
     if(subTypes.hasMarkers(traceOut)) {
-        handleMarkerDefaults(traceIn, traceOut, defaultColor, layout, coerce);
+        handleMarkerDefaults(traceIn, traceOut, defaultColor, layout, coerce, {gradient: true});
     }
 
     if(subTypes.hasText(traceOut)) {
@@ -77,4 +74,8 @@ module.exports = function supplyDefaults(traceIn, traceOut, defaultColor, layout
 
     errorBarsSupplyDefaults(traceIn, traceOut, defaultColor, {axis: 'y'});
     errorBarsSupplyDefaults(traceIn, traceOut, defaultColor, {axis: 'x', inherit: 'y'});
+
+    coerce('cliponaxis');
+
+    Lib.coerceSelectionMarkerOpacity(traceOut, coerce);
 };

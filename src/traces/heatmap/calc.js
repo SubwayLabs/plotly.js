@@ -40,14 +40,15 @@ module.exports = function calc(gd, trace) {
         y0,
         dy,
         z,
-        i;
+        i,
+        binned;
 
     // cancel minimum tick spacings (only applies to bars and boxes)
     xa._minDtick = 0;
     ya._minDtick = 0;
 
     if(isHist) {
-        var binned = histogram2dCalc(gd, trace);
+        binned = histogram2dCalc(gd, trace);
         x = binned.x;
         x0 = binned.x0;
         dx = binned.dx;
@@ -57,10 +58,15 @@ module.exports = function calc(gd, trace) {
         z = binned.z;
     }
     else {
-        if(hasColumns(trace)) convertColumnData(trace, xa, ya, 'x', 'y', ['z']);
+        if(hasColumns(trace)) {
+            convertColumnData(trace, xa, ya, 'x', 'y', ['z']);
+            x = trace.x;
+            y = trace.y;
+        } else {
+            x = trace.x ? xa.makeCalcdata(trace, 'x') : [];
+            y = trace.y ? ya.makeCalcdata(trace, 'y') : [];
+        }
 
-        x = trace.x ? xa.makeCalcdata(trace, 'x') : [];
-        y = trace.y ? ya.makeCalcdata(trace, 'y') : [];
         x0 = trace.x0 || 0;
         dx = trace.dx || 1;
         y0 = trace.y0 || 0;
@@ -76,7 +82,7 @@ module.exports = function calc(gd, trace) {
 
     function noZsmooth(msg) {
         zsmooth = trace._input.zsmooth = trace.zsmooth = false;
-        Lib.notifier('cannot fast-zsmooth: ' + msg);
+        Lib.warn('cannot use zsmooth: "fast": ' + msg);
     }
 
     // check whether we really can smooth (ie all boxes are about the same size)
@@ -122,6 +128,12 @@ module.exports = function calc(gd, trace) {
     }
 
     var cd0 = {x: xArray, y: yArray, z: z, text: trace.text};
+
+    if(isHist) {
+        cd0.xRanges = binned.xRanges;
+        cd0.yRanges = binned.yRanges;
+        cd0.pts = binned.pts;
+    }
 
     // auto-z and autocolorscale if applicable
     colorscaleCalc(trace, z, '', 'z');

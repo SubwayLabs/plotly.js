@@ -6,19 +6,18 @@ var supplyLayoutDefaults = require('@src/plots/ternary/layout/defaults');
 var d3 = require('d3');
 var createGraphDiv = require('../assets/create_graph_div');
 var destroyGraphDiv = require('../assets/destroy_graph_div');
+var fail = require('../assets/fail_test');
 var mouseEvent = require('../assets/mouse_event');
 var click = require('../assets/click');
 var doubleClick = require('../assets/double_click');
-var customMatchers = require('../assets/custom_matchers');
 var getClientPosition = require('../assets/get_client_position');
 
+var customAssertions = require('../assets/custom_assertions');
+var assertHoverLabelStyle = customAssertions.assertHoverLabelStyle;
+var assertHoverLabelContent = customAssertions.assertHoverLabelContent;
 
 describe('ternary plots', function() {
     'use strict';
-
-    beforeAll(function() {
-        jasmine.addMatchers(customMatchers);
-    });
 
     afterEach(destroyGraphDiv);
 
@@ -106,21 +105,60 @@ describe('ternary plots', function() {
             }).then(done);
         });
 
-        it('should display to hover labels', function() {
-            var hoverLabels;
-
+        it('should display to hover labels', function(done) {
             mouseEvent('mousemove', blankPos[0], blankPos[1]);
-            hoverLabels = findHoverLabels();
-            expect(hoverLabels.size()).toEqual(0, 'only on data points');
+            assertHoverLabelContent([null, null], 'only on data points');
 
-            mouseEvent('mousemove', pointPos[0], pointPos[1]);
-            hoverLabels = findHoverLabels();
-            expect(hoverLabels.size()).toEqual(1, 'one per data point');
+            function check(content, style, msg) {
+                Lib.clearThrottle();
+                mouseEvent('mousemove', pointPos[0], pointPos[1]);
 
-            var rows = hoverLabels.selectAll('tspan');
-            expect(rows[0][0].innerHTML).toEqual('Component A: 0.5', 'with correct text');
-            expect(rows[0][1].innerHTML).toEqual('B: 0.25', 'with correct text');
-            expect(rows[0][2].innerHTML).toEqual('Component C: 0.25', 'with correct text');
+                assertHoverLabelContent({nums: content}, msg);
+                assertHoverLabelStyle(d3.select('g.hovertext'), style, msg);
+            }
+
+            check([
+                'Component A: 0.5',
+                'B: 0.25',
+                'Component C: 0.25'
+            ].join('\n'), {
+                bgcolor: 'rgb(31, 119, 180)',
+                bordercolor: 'rgb(255, 255, 255)',
+                fontColor: 'rgb(255, 255, 255)',
+                fontSize: 13,
+                fontFamily: 'Arial'
+            }, 'one label per data pt');
+
+            Plotly.restyle(gd, {
+                'hoverlabel.bordercolor': 'blue',
+                'hoverlabel.font.family': [['Gravitas', 'Arial', 'Roboto']]
+            })
+            .then(function() {
+                check([
+                    'Component A: 0.5',
+                    'B: 0.25',
+                    'Component C: 0.25'
+                ].join('\n'), {
+                    bgcolor: 'rgb(31, 119, 180)',
+                    bordercolor: 'rgb(0, 0, 255)',
+                    fontColor: 'rgb(0, 0, 255)',
+                    fontSize: 13,
+                    fontFamily: 'Gravitas'
+                }, 'after hoverlabel styling restyle call');
+
+                return Plotly.restyle(gd, 'hoverinfo', [['a', 'b+c', 'b']]);
+            })
+            .then(function() {
+                check('Component A: 0.5', {
+                    bgcolor: 'rgb(31, 119, 180)',
+                    bordercolor: 'rgb(0, 0, 255)',
+                    fontColor: 'rgb(0, 0, 255)',
+                    fontSize: 13,
+                    fontFamily: 'Gravitas'
+                }, 'after hoverlabel styling restyle call');
+            })
+            .catch(fail)
+            .then(done);
         });
 
         it('should respond to hover interactions by', function() {
@@ -146,8 +184,8 @@ describe('ternary plots', function() {
             mouseEvent('mousemove', pointPos[0], pointPos[1]);
             expect(hoverData).not.toBe(undefined, 'firing on data points');
             expect(Object.keys(hoverData)).toEqual([
-                'data', 'fullData', 'curveNumber', 'pointNumber',
-                'x', 'y', 'xaxis', 'yaxis'
+                'data', 'fullData', 'curveNumber', 'pointNumber', 'pointIndex',
+                'xaxis', 'yaxis', 'a', 'b', 'c'
             ], 'returning the correct event data keys');
             expect(hoverData.curveNumber).toEqual(0, 'returning the correct curve number');
             expect(hoverData.pointNumber).toEqual(0, 'returning the correct point number');
@@ -155,8 +193,8 @@ describe('ternary plots', function() {
             mouseEvent('mouseout', pointPos[0], pointPos[1]);
             expect(unhoverData).not.toBe(undefined, 'firing on data points');
             expect(Object.keys(unhoverData)).toEqual([
-                'data', 'fullData', 'curveNumber', 'pointNumber',
-                'x', 'y', 'xaxis', 'yaxis'
+                'data', 'fullData', 'curveNumber', 'pointNumber', 'pointIndex',
+                'xaxis', 'yaxis', 'a', 'b', 'c'
             ], 'returning the correct event data keys');
             expect(unhoverData.curveNumber).toEqual(0, 'returning the correct curve number');
             expect(unhoverData.pointNumber).toEqual(0, 'returning the correct point number');
@@ -178,8 +216,8 @@ describe('ternary plots', function() {
             click(pointPos[0], pointPos[1]);
             expect(ptData).not.toBe(undefined, 'firing on data points');
             expect(Object.keys(ptData)).toEqual([
-                'data', 'fullData', 'curveNumber', 'pointNumber',
-                'x', 'y', 'xaxis', 'yaxis'
+                'data', 'fullData', 'curveNumber', 'pointNumber', 'pointIndex',
+                'xaxis', 'yaxis', 'a', 'b', 'c'
             ], 'returning the correct event data keys');
             expect(ptData.curveNumber).toEqual(0, 'returning the correct curve number');
             expect(ptData.pointNumber).toEqual(0, 'returning the correct point number');
@@ -228,16 +266,84 @@ describe('ternary plots', function() {
         });
     });
 
+    it('should be able to reorder axis layers when relayout\'ing *layer*', function(done) {
+        var gd = createGraphDiv();
+        var fig = Lib.extendDeep({}, require('@mocks/ternary_simple.json'));
+        var dflt = [
+            'draglayer', 'plotbg', 'backplot', 'grids',
+            'frontplot',
+            'aaxis', 'aline', 'baxis', 'bline', 'caxis', 'cline'
+        ];
+
+        function _assert(layers) {
+            var toplevel = d3.selectAll('g.ternary > .toplevel');
+
+            expect(toplevel.size()).toBe(layers.length, '# of layer');
+
+            toplevel.each(function(d, i) {
+                var className = d3.select(this)
+                    .attr('class')
+                    .split('toplevel ')[1];
+
+                expect(className).toBe(layers[i], 'layer ' + i);
+            });
+        }
+
+        Plotly.plot(gd, fig).then(function() {
+            _assert(dflt);
+            return Plotly.relayout(gd, 'ternary.aaxis.layer', 'below traces');
+        })
+        .then(function() {
+            _assert([
+                'draglayer', 'plotbg', 'backplot', 'grids',
+                'aaxis', 'aline',
+                'frontplot',
+                'baxis', 'bline', 'caxis', 'cline'
+            ]);
+            return Plotly.relayout(gd, 'ternary.caxis.layer', 'below traces');
+        })
+        .then(function() {
+            _assert([
+                'draglayer', 'plotbg', 'backplot', 'grids',
+                'aaxis', 'aline', 'caxis', 'cline',
+                'frontplot',
+                'baxis', 'bline'
+            ]);
+            return Plotly.relayout(gd, 'ternary.baxis.layer', 'below traces');
+        })
+        .then(function() {
+            _assert([
+                'draglayer', 'plotbg', 'backplot', 'grids',
+                'aaxis', 'aline', 'baxis', 'bline', 'caxis', 'cline',
+                'frontplot'
+            ]);
+            return Plotly.relayout(gd, 'ternary.aaxis.layer', null);
+        })
+        .then(function() {
+            _assert([
+                'draglayer', 'plotbg', 'backplot', 'grids',
+                'baxis', 'bline', 'caxis', 'cline',
+                'frontplot',
+                'aaxis', 'aline'
+            ]);
+            return Plotly.relayout(gd, {
+                'ternary.baxis.layer': null,
+                'ternary.caxis.layer': null
+            });
+        })
+        .then(function() {
+            _assert(dflt);
+        })
+        .catch(fail)
+        .then(done);
+    });
+
     function countTernarySubplot() {
         return d3.selectAll('.ternary').size();
     }
 
     function countTraces(type) {
         return d3.selectAll('.ternary').selectAll('g.trace.' + type).size();
-    }
-
-    function findHoverLabels() {
-        return d3.select('.hoverlayer').selectAll('g');
     }
 
     function drag(path) {
@@ -346,8 +452,6 @@ describe('Test event property of interactions on a ternary plot:', function() {
         pointPos;
 
     beforeAll(function(done) {
-        jasmine.addMatchers(customMatchers);
-
         gd = createGraphDiv();
         mockCopy = Lib.extendDeep({}, mock);
         Plotly.plot(gd, mockCopy.data, mockCopy.layout).then(function() {
@@ -387,18 +491,19 @@ describe('Test event property of interactions on a ternary plot:', function() {
                 evt = futureData.event;
 
             expect(Object.keys(pt)).toEqual([
-                'data', 'fullData', 'curveNumber', 'pointNumber', 'x', 'y',
-                'xaxis', 'yaxis'
+                'data', 'fullData', 'curveNumber', 'pointNumber', 'pointIndex',
+                'xaxis', 'yaxis', 'a', 'b', 'c'
             ]);
 
             expect(pt.curveNumber).toEqual(0, 'points[0].curveNumber');
             expect(typeof pt.data).toEqual(typeof {}, 'points[0].data');
             expect(typeof pt.fullData).toEqual(typeof {}, 'points[0].fullData');
             expect(pt.pointNumber).toEqual(0, 'points[0].pointNumber');
-            expect(pt.x).toEqual(undefined, 'points[0].x');
-            expect(pt.y).toEqual(undefined, 'points[0].y');
             expect(typeof pt.xaxis).toEqual(typeof {}, 'points[0].xaxis');
             expect(typeof pt.yaxis).toEqual(typeof {}, 'points[0].yaxis');
+            expect(pt.a).toEqual(0.5, 'points[0].a');
+            expect(pt.b).toEqual(0.25, 'points[0].b');
+            expect(pt.c).toEqual(0.25, 'points[0].c');
 
             expect(evt.clientX).toEqual(pointPos[0], 'event.clientX');
             expect(evt.clientY).toEqual(pointPos[1], 'event.clientY');
@@ -434,18 +539,19 @@ describe('Test event property of interactions on a ternary plot:', function() {
                 evt = futureData.event;
 
             expect(Object.keys(pt)).toEqual([
-                'data', 'fullData', 'curveNumber', 'pointNumber', 'x', 'y',
-                'xaxis', 'yaxis'
+                'data', 'fullData', 'curveNumber', 'pointNumber', 'pointIndex',
+                'xaxis', 'yaxis', 'a', 'b', 'c'
             ]);
 
             expect(pt.curveNumber).toEqual(0, 'points[0].curveNumber');
             expect(typeof pt.data).toEqual(typeof {}, 'points[0].data');
             expect(typeof pt.fullData).toEqual(typeof {}, 'points[0].fullData');
             expect(pt.pointNumber).toEqual(0, 'points[0].pointNumber');
-            expect(pt.x).toEqual(undefined, 'points[0].x');
-            expect(pt.y).toEqual(undefined, 'points[0].y');
             expect(typeof pt.xaxis).toEqual(typeof {}, 'points[0].xaxis');
             expect(typeof pt.yaxis).toEqual(typeof {}, 'points[0].yaxis');
+            expect(pt.a).toEqual(0.5, 'points[0].a');
+            expect(pt.b).toEqual(0.25, 'points[0].b');
+            expect(pt.c).toEqual(0.25, 'points[0].c');
 
             expect(evt.clientX).toEqual(pointPos[0], 'event.clientX');
             expect(evt.clientY).toEqual(pointPos[1], 'event.clientY');
@@ -478,18 +584,19 @@ describe('Test event property of interactions on a ternary plot:', function() {
                 yvals0 = futureData.yvals[0];
 
             expect(Object.keys(pt)).toEqual([
-                'data', 'fullData', 'curveNumber', 'pointNumber', 'x', 'y',
-                'xaxis', 'yaxis'
+                'data', 'fullData', 'curveNumber', 'pointNumber', 'pointIndex',
+                'xaxis', 'yaxis', 'a', 'b', 'c'
             ]);
 
             expect(pt.curveNumber).toEqual(0, 'points[0].curveNumber');
             expect(typeof pt.data).toEqual(typeof {}, 'points[0].data');
             expect(typeof pt.fullData).toEqual(typeof {}, 'points[0].fullData');
             expect(pt.pointNumber).toEqual(0, 'points[0].pointNumber');
-            expect(pt.x).toEqual(undefined, 'points[0].x');
-            expect(pt.y).toEqual(undefined, 'points[0].y');
             expect(typeof pt.xaxis).toEqual(typeof {}, 'points[0].xaxis');
             expect(typeof pt.yaxis).toEqual(typeof {}, 'points[0].yaxis');
+            expect(pt.a).toEqual(0.5, 'points[0].a');
+            expect(pt.b).toEqual(0.25, 'points[0].b');
+            expect(pt.c).toEqual(0.25, 'points[0].c');
 
             expect(xaxes0).toEqual(pt.xaxis, 'xaxes[0]');
             expect(xvals0).toEqual(-0.0016654247744483342, 'xaxes[0]');
@@ -521,18 +628,19 @@ describe('Test event property of interactions on a ternary plot:', function() {
                 evt = futureData.event;
 
             expect(Object.keys(pt)).toEqual([
-                'data', 'fullData', 'curveNumber', 'pointNumber', 'x', 'y',
-                'xaxis', 'yaxis'
+                'data', 'fullData', 'curveNumber', 'pointNumber', 'pointIndex',
+                'xaxis', 'yaxis', 'a', 'b', 'c'
             ]);
 
             expect(pt.curveNumber).toEqual(0, 'points[0].curveNumber');
             expect(typeof pt.data).toEqual(typeof {}, 'points[0].data');
             expect(typeof pt.fullData).toEqual(typeof {}, 'points[0].fullData');
             expect(pt.pointNumber).toEqual(0, 'points[0].pointNumber');
-            expect(pt.x).toEqual(undefined, 'points[0].x');
-            expect(pt.y).toEqual(undefined, 'points[0].y');
             expect(typeof pt.xaxis).toEqual(typeof {}, 'points[0].xaxis');
             expect(typeof pt.yaxis).toEqual(typeof {}, 'points[0].yaxis');
+            expect(pt.a).toEqual(0.5, 'points[0].a');
+            expect(pt.b).toEqual(0.25, 'points[0].b');
+            expect(pt.c).toEqual(0.25, 'points[0].c');
 
             expect(evt.clientX).toEqual(pointPos[0], 'event.clientX');
             expect(evt.clientY).toEqual(pointPos[1], 'event.clientY');

@@ -227,6 +227,7 @@ function setOffsetAndWidth(gd, pa, sieve) {
         t.barwidth = barWidth;
         t.poffset = offsetFromCenter;
         t.bargroupwidth = barGroupWidth;
+        t.bardelta = minDiff;
     }
 
     // stack bars that only differ by rounding
@@ -277,6 +278,7 @@ function setOffsetAndWidthInGroupMode(gd, pa, sieve) {
         t.barwidth = barWidth;
         t.poffset = offsetFromCenter;
         t.bargroupwidth = barGroupWidth;
+        t.bardelta = minDiff;
     }
 
     // stack bars that only differ by rounding
@@ -467,8 +469,7 @@ function setBaseAndTop(gd, sa, sieve) {
     // along with the bases and tops of each bar.
     var traces = sieve.traces,
         sLetter = getAxisLetter(sa),
-        s0 = sa.l2c(sa.c2l(0)),
-        sRange = [s0, s0];
+        sRange = [null, null];
 
     for(var i = 0; i < traces.length; i++) {
         var trace = traces[i];
@@ -481,7 +482,7 @@ function setBaseAndTop(gd, sa, sieve) {
             bar[sLetter] = barTop;
 
             if(isNumeric(sa.c2l(barTop))) expandRange(sRange, barTop);
-            if(isNumeric(sa.c2l(barBase))) expandRange(sRange, barBase);
+            if(bar.hasB && isNumeric(sa.c2l(barBase))) expandRange(sRange, barBase);
         }
     }
 
@@ -497,8 +498,7 @@ function stackBars(gd, sa, sieve) {
         i, trace,
         j, bar;
 
-    var s0 = sa.l2c(sa.c2l(0)),
-        sRange = [s0, s0];
+    var sRange = [null, null];
 
     for(i = 0; i < traces.length; i++) {
         trace = traces[i];
@@ -518,7 +518,7 @@ function stackBars(gd, sa, sieve) {
 
             if(!barnorm) {
                 if(isNumeric(sa.c2l(barTop))) expandRange(sRange, barTop);
-                if(isNumeric(sa.c2l(barBase))) expandRange(sRange, barBase);
+                if(bar.hasB && isNumeric(sa.c2l(barBase))) expandRange(sRange, barBase);
             }
         }
     }
@@ -584,7 +584,7 @@ function normalizeBars(gd, sa, sieve) {
             bar[sLetter] = barTop;
 
             maybeExpand(barTop);
-            maybeExpand(barBase);
+            if(bar.hasB) maybeExpand(barBase);
         }
     }
 

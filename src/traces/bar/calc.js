@@ -14,9 +14,8 @@ var isNumeric = require('fast-isnumeric');
 var Axes = require('../../plots/cartesian/axes');
 var hasColorscale = require('../../components/colorscale/has_colorscale');
 var colorscaleCalc = require('../../components/colorscale/calc');
-
 var arraysToCalcdata = require('./arrays_to_calcdata');
-
+var calcSelection = require('../scatter/calc_selection');
 
 module.exports = function calc(gd, trace) {
     // depending on bar direction, set position and size axes
@@ -48,12 +47,16 @@ module.exports = function calc(gd, trace) {
     }
 
     // create the "calculated data" to plot
-    var serieslen = Math.min(pos.length, size.length),
-        cd = new Array(serieslen);
+    var serieslen = Math.min(pos.length, size.length);
+    var cd = new Array(serieslen);
 
     // set position and size
     for(i = 0; i < serieslen; i++) {
         cd[i] = { p: pos[i], s: size[i] };
+
+        if(trace.ids) {
+            cd[i].id = String(trace.ids[i]);
+        }
     }
 
     // set base
@@ -63,7 +66,11 @@ module.exports = function calc(gd, trace) {
     if(Array.isArray(base)) {
         for(i = 0; i < Math.min(base.length, cd.length); i++) {
             b = sa.d2c(base[i], 0, scalendar);
-            cd[i].b = (isNumeric(b)) ? b : 0;
+            if(isNumeric(b)) {
+                cd[i].b = +b;
+                cd[i].hasB = 1;
+            }
+            else cd[i].b = 0;
         }
         for(; i < cd.length; i++) {
             cd[i].b = 0;
@@ -71,9 +78,11 @@ module.exports = function calc(gd, trace) {
     }
     else {
         b = sa.d2c(base, 0, scalendar);
-        b = (isNumeric(b)) ? b : 0;
+        var hasBase = isNumeric(b);
+        b = hasBase ? b : 0;
         for(i = 0; i < cd.length; i++) {
             cd[i].b = b;
+            if(hasBase) cd[i].hasB = 1;
         }
     }
 
@@ -86,6 +95,7 @@ module.exports = function calc(gd, trace) {
     }
 
     arraysToCalcdata(cd, trace);
+    calcSelection(cd, trace);
 
     return cd;
 };

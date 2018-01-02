@@ -45,9 +45,10 @@ function equalPts(pt1, pt2, xtol, ytol) {
            Math.abs(pt1[1] - pt2[1]) < ytol;
 }
 
+// distance in index units - uses the 3rd and 4th items in points
 function ptDist(pt1, pt2) {
-    var dx = pt1[0] - pt2[0],
-        dy = pt1[1] - pt2[1];
+    var dx = pt1[2] - pt2[2],
+        dy = pt1[3] - pt2[3];
     return Math.sqrt(dx * dx + dy * dy);
 }
 
@@ -101,22 +102,21 @@ function makePath(pi, loc, edgeflag, xtol, ytol) {
     if(cnt === 10000) {
         Lib.log('Infinite loop in contour?');
     }
-    var closedpath = equalPts(pts[0], pts[pts.length - 1], xtol, ytol),
-        totaldist = 0,
-        distThresholdFactor = 0.2 * pi.smoothing,
-        alldists = [],
-        cropstart = 0,
-        distgroup,
-        cnt2,
-        cnt3,
-        newpt,
-        ptcnt,
-        ptavg,
-        thisdist;
+    var closedpath = equalPts(pts[0], pts[pts.length - 1], xtol, ytol);
+    var totaldist = 0;
+    var distThresholdFactor = 0.2 * pi.smoothing;
+    var alldists = [];
+    var cropstart = 0;
+    var distgroup, cnt2, cnt3, newpt, ptcnt, ptavg, thisdist,
+        i, j, edgepathi, edgepathj;
 
-    // check for points that are too close together (<1/5 the average dist,
-    // less if less smoothed) and just take the center (or avg of center 2)
-    // this cuts down on funny behavior when a point is very close to a contour level
+    /*
+     * Check for points that are too close together (<1/5 the average dist
+     * *in grid index units* (important for log axes and nonuniform grids),
+     * less if less smoothed) and just take the center (or avg of center 2).
+     * This cuts down on funny behavior when a point is very close to a
+     * contour level.
+     */
     for(cnt = 1; cnt < pts.length; cnt++) {
         thisdist = ptDist(pts[cnt], pts[cnt - 1]);
         totaldist += thisdist;
@@ -174,6 +174,10 @@ function makePath(pi, loc, edgeflag, xtol, ytol) {
     }
     pts.splice(0, cropstart);
 
+    // done with the index parts - remove them so path generation works right
+    // because it depends on only having [xpx, ypx]
+    for(cnt = 0; cnt < pts.length; cnt++) pts[cnt].length = 2;
+
     // don't return single-point paths (ie all points were the same
     // so they got deleted?)
     if(pts.length < 2) return;
@@ -189,41 +193,45 @@ function makePath(pi, loc, edgeflag, xtol, ytol) {
 
         // edge path - does it start where an existing edge path ends, or vice versa?
         var merged = false;
-        pi.edgepaths.forEach(function(edgepath, edgei) {
-            if(!merged && equalPts(edgepath[0], pts[pts.length - 1], xtol, ytol)) {
+        for(i = 0; i < pi.edgepaths.length; i++) {
+            edgepathi = pi.edgepaths[i];
+            if(!merged && equalPts(edgepathi[0], pts[pts.length - 1], xtol, ytol)) {
                 pts.pop();
                 merged = true;
 
                 // now does it ALSO meet the end of another (or the same) path?
                 var doublemerged = false;
-                pi.edgepaths.forEach(function(edgepath2, edgei2) {
-                    if(!doublemerged && equalPts(
-                            edgepath2[edgepath2.length - 1], pts[0], xtol, ytol)) {
+                for(j = 0; j < pi.edgepaths.length; j++) {
+                    edgepathj = pi.edgepaths[j];
+                    if(equalPts(edgepathj[edgepathj.length - 1], pts[0], xtol, ytol)) {
                         doublemerged = true;
-                        pts.splice(0, 1);
-                        pi.edgepaths.splice(edgei, 1);
-                        if(edgei2 === edgei) {
+                        pts.shift();
+                        pi.edgepaths.splice(i, 1);
+                        if(j === i) {
                             // the path is now closed
-                            pi.paths.push(pts.concat(edgepath2));
+                            pi.paths.push(pts.concat(edgepathj));
                         }
                         else {
-                            pi.edgepaths[edgei2] =
-                                pi.edgepaths[edgei2].concat(pts, edgepath2);
+                            if(j > i) j--;
+                            pi.edgepaths[j] = edgepathj.concat(pts, edgepathi);
                         }
+                        break;
                     }
-                });
+                }
                 if(!doublemerged) {
-                    pi.edgepaths[edgei] = pts.concat(edgepath);
+                    pi.edgepaths[i] = pts.concat(edgepathi);
                 }
             }
-        });
-        pi.edgepaths.forEach(function(edgepath, edgei) {
-            if(!merged && equalPts(edgepath[edgepath.length - 1], pts[0], xtol, ytol)) {
-                pts.splice(0, 1);
-                pi.edgepaths[edgei] = edgepath.concat(pts);
+        }
+        for(i = 0; i < pi.edgepaths.length; i++) {
+            if(merged) break;
+            edgepathi = pi.edgepaths[i];
+            if(equalPts(edgepathi[edgepathi.length - 1], pts[0], xtol, ytol)) {
+                pts.shift();
+                pi.edgepaths[i] = edgepathi.concat(pts);
                 merged = true;
             }
-        });
+        }
 
         if(!merged) pi.edgepaths.push(pts);
     }
@@ -252,6 +260,21 @@ function startStep(mi, edgeflag, loc) {
     return [dx, dy];
 }
 
+/*
+ * Find the pixel coordinates of a particular crossing
+ *
+ * @param {object} pi: the pathinfo object at this level
+ * @param {array} loc: the grid index [x, y] of the crossing
+ * @param {array} step: the direction [dx, dy] we're moving on the grid
+ *
+ * @return {array} [xpx, ypx, xi, yi]: the first two are the pixel location,
+ *   the next two are the interpolated grid indices, which we use for
+ *   distance calculations to delete points that are too close together.
+ *   This is important when the grid is nonuniform (and most dramatically when
+ *   we're on log axes and include invalid (0 or negative) values.
+ *   It's crucial to delete these extra two before turning an array of these
+ *   points into a path, because those routines require length-2 points.
+ */
 function getInterpPx(pi, loc, step) {
     var locx = loc[0] + Math.max(step[0], 0),
         locy = loc[1] + Math.max(step[1], 0),
@@ -263,11 +286,13 @@ function getInterpPx(pi, loc, step) {
         var dx = (pi.level - zxy) / (pi.z[locy][locx + 1] - zxy);
 
         return [xa.c2p((1 - dx) * pi.x[locx] + dx * pi.x[locx + 1], true),
-            ya.c2p(pi.y[locy], true)];
+            ya.c2p(pi.y[locy], true),
+            locx + dx, locy];
     }
     else {
         var dy = (pi.level - zxy) / (pi.z[locy + 1][locx] - zxy);
         return [xa.c2p(pi.x[locx], true),
-            ya.c2p((1 - dy) * pi.y[locy] + dy * pi.y[locy + 1], true)];
+            ya.c2p((1 - dy) * pi.y[locy] + dy * pi.y[locy + 1], true),
+            locx, locy + dy];
     }
 }

@@ -17,12 +17,13 @@ ScatterTernary.calc = require('./calc');
 ScatterTernary.plot = require('./plot');
 ScatterTernary.style = require('./style');
 ScatterTernary.hoverPoints = require('./hover');
-ScatterTernary.selectPoints = require('./select');
+ScatterTernary.selectPoints = require('../scatter/select');
+ScatterTernary.eventData = require('./event_data');
 
 ScatterTernary.moduleType = 'trace';
 ScatterTernary.name = 'scatterternary';
 ScatterTernary.basePlotModule = require('../../plots/ternary');
-ScatterTernary.categories = ['ternary', 'symbols', 'markerColorscale', 'showLegend'];
+ScatterTernary.categories = ['ternary', 'symbols', 'markerColorscale', 'showLegend', 'scatter-like'];
 ScatterTernary.meta = {
     hrName: 'scatter_ternary',
     description: [

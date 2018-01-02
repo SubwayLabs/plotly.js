@@ -40,6 +40,10 @@ module.exports = function register(_modules) {
                 registerComponentModule(newModule);
                 break;
 
+            case 'locale':
+                Registry.registerLocale(newModule);
+                break;
+
             default:
                 throw new Error('Invalid module was attempted to be registered!');
         }
@@ -85,7 +89,7 @@ function registerTransformModule(newModule) {
         Lib.log(prefix + ' registered without a *supplyDefaults* method.');
     }
 
-    Registry.transformsRegistry[newModule.name] = newModule;
+    Registry.registerTransform(newModule);
 }
 
 function registerComponentModule(newModule) {

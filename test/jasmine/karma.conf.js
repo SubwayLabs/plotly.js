@@ -95,9 +95,11 @@ if(isFullSuite) {
 }
 
 var pathToShortcutPath = path.join(__dirname, '..', '..', 'tasks', 'util', 'shortcut_paths.js');
+var pathToStrictD3 = path.join(__dirname, '..', '..', 'tasks', 'util', 'strict_d3.js');
 var pathToMain = path.join(__dirname, '..', '..', 'lib', 'index.js');
 var pathToJQuery = path.join(__dirname, 'assets', 'jquery-1.8.3.min.js');
 var pathToIE9mock = path.join(__dirname, 'assets', 'ie9_mock.js');
+var pathToCustomMatchers = path.join(__dirname, 'assets', 'custom_matchers.js');
 
 
 function func(config) {
@@ -131,8 +133,8 @@ func.defaultConfig = {
 
     // list of files / patterns to load in the browser
     //
-    // N.B. this field is filled below
-    files: [],
+    // N.B. the rest of this field is filled below
+    files: [pathToCustomMatchers],
 
     // list of files / pattern to exclude
     exclude: [],
@@ -182,6 +184,7 @@ func.defaultConfig = {
         _Chrome: {
             base: 'Chrome',
             flags: [
+                '--touch-events',
                 '--window-size=' + argv.width + ',' + argv.height,
                 isCI ? '--ignore-gpu-blacklist' : ''
             ]
@@ -193,7 +196,7 @@ func.defaultConfig = {
     },
 
     browserify: {
-        transform: [pathToShortcutPath],
+        transform: [pathToStrictD3, pathToShortcutPath],
         extensions: ['.js'],
         watch: !argv.nowatch,
         debug: true
@@ -218,16 +221,21 @@ func.defaultConfig = {
     }
 };
 
+func.defaultConfig.preprocessors[pathToCustomMatchers] = ['browserify'];
+
 if(isFullSuite) {
     func.defaultConfig.files.push(pathToJQuery);
     func.defaultConfig.preprocessors[testFileGlob] = ['browserify'];
 } else if(isBundleTest) {
     switch(basename(testFileGlob)) {
         case 'requirejs':
+            // browserified custom_matchers doesn't work with this route
+            // so clear them out of the files and preprocessors
             func.defaultConfig.files = [
                 constants.pathToRequireJS,
                 constants.pathToRequireJSFixture
             ];
+            delete func.defaultConfig.preprocessors[pathToCustomMatchers];
             break;
         case 'ie9':
             // load ie9_mock.js before plotly.js+test bundle

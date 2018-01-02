@@ -21,7 +21,6 @@ var handleFillColorDefaults = require('../scatter/fillcolor_defaults');
 
 var attributes = require('./attributes');
 
-
 module.exports = function supplyDefaults(traceIn, traceOut, defaultColor, layout) {
     function coerce(attr, dflt) {
         return Lib.coerce(traceIn, traceOut, attributes, attr, dflt);
@@ -48,8 +47,6 @@ module.exports = function supplyDefaults(traceIn, traceOut, defaultColor, layout
     if(a && len < a.length) traceOut.a = a.slice(0, len);
     if(b && len < b.length) traceOut.b = b.slice(0, len);
 
-    coerce('sum');
-
     coerce('text');
 
     var defaultMode = len < constants.PTS_LINESONLY ? 'lines+markers' : 'lines';
@@ -62,7 +59,7 @@ module.exports = function supplyDefaults(traceIn, traceOut, defaultColor, layout
     }
 
     if(subTypes.hasMarkers(traceOut)) {
-        handleMarkerDefaults(traceIn, traceOut, defaultColor, layout, coerce);
+        handleMarkerDefaults(traceIn, traceOut, defaultColor, layout, coerce, {gradient: true});
     }
 
     if(subTypes.hasText(traceOut)) {
@@ -82,10 +79,10 @@ module.exports = function supplyDefaults(traceIn, traceOut, defaultColor, layout
         if(!subTypes.hasLines(traceOut)) handleLineShapeDefaults(traceIn, traceOut, coerce);
     }
 
-    coerce('hoverinfo', (layout._dataLength === 1) ? 'a+b+text' : undefined);
-
     if(traceOut.fill === 'tonext' || traceOut.fill === 'toself') {
         dfltHoverOn.push('fills');
     }
     coerce('hoveron', dfltHoverOn.join('+') || 'points');
+
+    Lib.coerceSelectionMarkerOpacity(traceOut, coerce);
 };

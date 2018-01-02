@@ -6,46 +6,56 @@
 * LICENSE file in the root directory of this source tree.
 */
 
-
 'use strict';
 
 var Lib = require('../../lib');
-var Fx = require('../../plots/cartesian/graph_interact');
-var constants = require('../../plots/cartesian/constants');
+var Fx = require('../../components/fx');
 var ErrorBars = require('../../components/errorbars');
 var getTraceColor = require('./get_trace_color');
 var Color = require('../../components/color');
+var fillHoverText = require('./fill_hover_text');
 
+var MAXDIST = Fx.constants.MAXDIST;
 
 module.exports = function hoverPoints(pointData, xval, yval, hovermode) {
-    var cd = pointData.cd,
-        trace = cd[0].trace,
-        xa = pointData.xa,
-        ya = pointData.ya,
-        xpx = xa.c2p(xval),
-        ypx = ya.c2p(yval),
-        pt = [xpx, ypx];
+    var cd = pointData.cd;
+    var trace = cd[0].trace;
+    var xa = pointData.xa;
+    var ya = pointData.ya;
+    var xpx = xa.c2p(xval);
+    var ypx = ya.c2p(yval);
+    var pt = [xpx, ypx];
+    var hoveron = trace.hoveron || '';
+    var minRad = (trace.mode.indexOf('markers') !== -1) ? 3 : 0.5;
 
     // look for points to hover on first, then take fills only if we
     // didn't find a point
-    if(trace.hoveron.indexOf('points') !== -1) {
+    if(hoveron.indexOf('points') !== -1) {
         var dx = function(di) {
+                // dx and dy are used in compare modes - here we want to always
+                // prioritize the closest data point, at least as long as markers are
+                // the same size or nonexistent, but still try to prioritize small markers too.
+                var rad = Math.max(3, di.mrc || 0);
+                var kink = 1 - 1 / rad;
+                var dxRaw = Math.abs(xa.c2p(di.x) - xpx);
+                var d = (dxRaw < rad) ? (kink * dxRaw / rad) : (dxRaw - rad + kink);
+                return d;
+            },
+            dy = function(di) {
+                var rad = Math.max(3, di.mrc || 0);
+                var kink = 1 - 1 / rad;
+                var dyRaw = Math.abs(ya.c2p(di.y) - ypx);
+                return (dyRaw < rad) ? (kink * dyRaw / rad) : (dyRaw - rad + kink);
+            },
+            dxy = function(di) {
                 // scatter points: d.mrc is the calculated marker radius
                 // adjust the distance so if you're inside the marker it
                 // always will show up regardless of point size, but
                 // prioritize smaller points
-                var rad = Math.max(3, di.mrc || 0);
-                return Math.max(Math.abs(xa.c2p(di.x) - xpx) - rad, 1 - 3 / rad);
-            },
-            dy = function(di) {
-                var rad = Math.max(3, di.mrc || 0);
-                return Math.max(Math.abs(ya.c2p(di.y) - ypx) - rad, 1 - 3 / rad);
-            },
-            dxy = function(di) {
-                var rad = Math.max(3, di.mrc || 0),
-                    dx = xa.c2p(di.x) - xpx,
-                    dy = ya.c2p(di.y) - ypx;
-                return Math.max(Math.sqrt(dx * dx + dy * dy) - rad, 1 - 3 / rad);
+                var rad = Math.max(minRad, di.mrc || 0);
+                var dx = xa.c2p(di.x) - xpx;
+                var dy = ya.c2p(di.y) - ypx;
+                return Math.max(Math.sqrt(dx * dx + dy * dy) - rad, 1 - minRad / rad);
             },
             distfn = Fx.getDistanceFunction(hovermode, dx, dy, dxy);
 
@@ -72,11 +82,7 @@ module.exports = function hoverPoints(pointData, xval, yval, hovermode) {
                 yLabelVal: di.y
             });
 
-            if(di.htx) pointData.text = di.htx;
-            else if(trace.hovertext) pointData.text = trace.hovertext;
-            else if(di.tx) pointData.text = di.tx;
-            else if(trace.text) pointData.text = trace.text;
-
+            fillHoverText(di, trace, pointData);
             ErrorBars.hoverInfo(di, trace, pointData);
 
             return [pointData];
@@ -84,7 +90,7 @@ module.exports = function hoverPoints(pointData, xval, yval, hovermode) {
     }
 
     // even if hoveron is 'fills', only use it if we have polygons too
-    if(trace.hoveron.indexOf('fills') !== -1 && trace._polygons) {
+    if(hoveron.indexOf('fills') !== -1 && trace._polygons) {
         var polygons = trace._polygons,
             polygonsIn = [],
             inside = false,
@@ -148,7 +154,7 @@ module.exports = function hoverPoints(pointData, xval, yval, hovermode) {
 
             Lib.extendFlat(pointData, {
                 // never let a 2D override 1D type as closest point
-                distance: constants.MAXDIST + 10,
+                distance: MAXDIST + 10,
                 x0: xmin,
                 x1: xmax,
                 y0: yAvg,

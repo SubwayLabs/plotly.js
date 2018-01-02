@@ -8,7 +8,6 @@ var createGraphDiv = require('../assets/create_graph_div');
 var destroyGraphDiv = require('../assets/destroy_graph_div');
 var mouseEvent = require('../assets/mouse_event');
 var getRectCenter = require('../assets/get_rect_center');
-var customMatchers = require('../assets/custom_matchers');
 
 // cartesian click events events use the hover data
 // from the mousemove events and then simulate
@@ -52,10 +51,6 @@ describe('Test click interactions:', function() {
     var autoRangeX = [-3.011967491973726, 2.1561305597186564],
         autoRangeY = [-0.9910086301469277, 1.389382716298284];
 
-    beforeAll(function() {
-        jasmine.addMatchers(customMatchers);
-    });
-
     beforeEach(function() {
         gd = createGraphDiv();
         mockCopy = Lib.extendDeep({}, mock);
@@ -91,7 +86,7 @@ describe('Test click interactions:', function() {
 
             var pt = futureData.points[0];
             expect(Object.keys(pt)).toEqual([
-                'data', 'fullData', 'curveNumber', 'pointNumber',
+                'data', 'fullData', 'curveNumber', 'pointNumber', 'pointIndex',
                 'x', 'y', 'xaxis', 'yaxis'
             ]);
             expect(pt.curveNumber).toEqual(0);
@@ -133,7 +128,7 @@ describe('Test click interactions:', function() {
 
             var pt = futureData.points[0];
             expect(Object.keys(pt)).toEqual([
-                'data', 'fullData', 'curveNumber', 'pointNumber',
+                'data', 'fullData', 'curveNumber', 'pointNumber', 'pointIndex',
                 'x', 'y', 'xaxis', 'yaxis'
             ]);
             expect(pt.curveNumber).toEqual(0);
@@ -213,7 +208,7 @@ describe('Test click interactions:', function() {
 
             var pt = futureData.points[0];
             expect(Object.keys(pt)).toEqual([
-                'data', 'fullData', 'curveNumber', 'pointNumber',
+                'data', 'fullData', 'curveNumber', 'pointNumber', 'pointIndex',
                 'x', 'y', 'xaxis', 'yaxis'
             ]);
             expect(pt.curveNumber).toEqual(0);
@@ -244,7 +239,7 @@ describe('Test click interactions:', function() {
 
             var pt = futureData.points[0];
             expect(Object.keys(pt)).toEqual([
-                'data', 'fullData', 'curveNumber', 'pointNumber',
+                'data', 'fullData', 'curveNumber', 'pointNumber', 'pointIndex',
                 'x', 'y', 'xaxis', 'yaxis'
             ]);
             expect(pt.curveNumber).toEqual(0);
@@ -279,7 +274,7 @@ describe('Test click interactions:', function() {
 
                 var pt = futureData.points[0];
                 expect(Object.keys(pt)).toEqual([
-                    'data', 'fullData', 'curveNumber', 'pointNumber',
+                    'data', 'fullData', 'curveNumber', 'pointNumber', 'pointIndex',
                     'x', 'y', 'xaxis', 'yaxis'
                 ]);
                 expect(pt.curveNumber).toEqual(0);
@@ -871,8 +866,8 @@ describe('Test click interactions:', function() {
             var translate = Drawing.getTranslate(mockEl),
                 scale = Drawing.getScale(mockEl);
 
-            expect([translate.x, translate.y]).toBeCloseToArray([-25.941, 43.911]);
-            expect([scale.x, scale.y]).toBeCloseToArray([1.221, 1.221]);
+            expect([translate.x, translate.y]).toBeCloseToArray([13.93, 62.86]);
+            expect([scale.x, scale.y]).toBeCloseToArray([1.105, 1.105]);
         });
     });
 

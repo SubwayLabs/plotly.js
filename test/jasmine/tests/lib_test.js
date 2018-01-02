@@ -9,7 +9,6 @@ var PlotlyInternal = require('@src/plotly');
 var createGraphDiv = require('../assets/create_graph_div');
 var destroyGraphDiv = require('../assets/destroy_graph_div');
 var Plots = PlotlyInternal.Plots;
-var customMatchers = require('../assets/custom_matchers');
 var failTest = require('../assets/fail_test');
 
 describe('Test lib.js:', function() {
@@ -471,10 +470,6 @@ describe('Test lib.js:', function() {
     });
 
     describe('expandObjectPaths', function() {
-        beforeAll(function() {
-            jasmine.addMatchers(customMatchers);
-        });
-
         it('returns the original object', function() {
             var x = {};
             expect(Lib.expandObjectPaths(x)).toBe(x);
@@ -846,7 +841,7 @@ describe('Test lib.js:', function() {
     });
 
     describe('coerceFont', function() {
-        var fontAttrs = Plots.fontAttrs,
+        var fontAttrs = Plots.fontAttrs({}),
             extendFlat = Lib.extendFlat,
             coerceFont = Lib.coerceFont;
 
@@ -978,6 +973,12 @@ describe('Test lib.js:', function() {
                 arrayOk: true,
                 dflt: 'a'
             });
+
+            assert(['x', 'x2'], ['xx', 'x0', undefined], {
+                valType: 'enumerated',
+                values: ['/^x([2-9]|[1-9][0-9]+)?$/'],
+                dflt: 'x'
+            });
         });
 
         it('should work for valType \'boolean\' where', function() {
@@ -1069,6 +1070,15 @@ describe('Test lib.js:', function() {
 
             assert(shouldPass, shouldFail, {
                 valType: 'color'
+            });
+        });
+
+        it('should work for valType \'colorlist\' where', function() {
+            var shouldPass = [['red'], ['#ffffff'], ['rgba(0,0,0,1)'], ['red', 'green', 'blue']],
+                shouldFail = [1, null, undefined, {}, [], 'red', ['red', null]];
+
+            assert(shouldPass, shouldFail, {
+                valType: 'colorlist'
             });
         });
 
@@ -1599,6 +1609,365 @@ describe('Test lib.js:', function() {
             expect(c.MESSAGES).toEqual([]);
         });
     });
+
+    describe('keyedContainer', function() {
+        describe('with a filled container', function() {
+            var container, carr;
+
+            beforeEach(function() {
+                container = {
+                    styles: [
+                        {name: 'name1', value: 'value1'},
+                        {name: 'name2', value: 'value2'}
+                    ]
+                };
+
+                carr = Lib.keyedContainer(container, 'styles');
+            });
+
+            describe('modifying the object', function() {
+                it('adds and updates items', function() {
+                    carr.set('foo', 'bar');
+                    carr.set('name1', 'value3');
+
+                    expect(container).toEqual({styles: [
+                        {name: 'name1', value: 'value3'},
+                        {name: 'name2', value: 'value2'},
+                        {name: 'foo', value: 'bar'}
+                    ]});
+                });
+
+                it('removes items', function() {
+                    carr.set('foo', 'bar');
+                    carr.remove('name1');
+
+                    expect(container).toEqual({styles: [
+                        {name: 'name2', value: 'value2'},
+                        {name: 'foo', value: 'bar'}
+                    ]});
+                });
+
+                it('gets items', function() {
+                    expect(carr.get('foo')).toBe(undefined);
+                    expect(carr.get('name1')).toEqual('value1');
+
+                    carr.remove('name1');
+
+                    expect(carr.get('name1')).toBe(undefined);
+
+                    carr.rename('name2', 'name3');
+
+                    expect(carr.get('name3')).toEqual('value2');
+                });
+
+                it('renames items', function() {
+                    carr.rename('name2', 'name3');
+
+                    expect(container).toEqual({styles: [
+                        {name: 'name1', value: 'value1'},
+                        {name: 'name3', value: 'value2'}
+                    ]});
+                });
+            });
+
+            describe('constructing updates', function() {
+                it('constructs updates for addition and modification', function() {
+                    carr.set('foo', 'bar');
+                    carr.set('name1', 'value3');
+
+                    expect(carr.constructUpdate()).toEqual({
+                        'styles[0].value': 'value3',
+                        'styles[2].name': 'foo',
+                        'styles[2].value': 'bar'
+                    });
+                });
+
+                it('constructs updates for removal', function() {
+                    carr.set('foo', 'bar');
+                    carr.remove('name1');
+
+                    expect(carr.constructUpdate()).toEqual({
+                        'styles[0].name': 'name2',
+                        'styles[0].value': 'value2',
+                        'styles[1].name': 'foo',
+                        'styles[1].value': 'bar',
+                        'styles[2]': null
+                    });
+                });
+
+                it('constructs updates for renaming', function() {
+                    carr.rename('name2', 'name3');
+
+                    expect(carr.constructUpdate()).toEqual({
+                        'styles[1].name': 'name3'
+                    });
+                });
+            });
+        });
+
+        describe('with custom named properties', function() {
+            it('performs all of the operations', function() {
+                var container = {styles: [
+                    {foo: 'name1', bar: 'value1'},
+                    {foo: 'name2', bar: 'value2'}
+                ]};
+
+                var carr = Lib.keyedContainer(container, 'styles', 'foo', 'bar');
+
+                // SET A VALUE
+
+                carr.set('name3', 'value3');
+
+                expect(container).toEqual({styles: [
+                    {foo: 'name1', bar: 'value1'},
+                    {foo: 'name2', bar: 'value2'},
+                    {foo: 'name3', bar: 'value3'}
+                ]});
+
+                expect(carr.constructUpdate()).toEqual({
+                    'styles[2].foo': 'name3',
+                    'styles[2].bar': 'value3'
+                });
+
+                // REMOVE A VALUE
+
+                carr.remove('name2');
+
+                expect(container).toEqual({styles: [
+                    {foo: 'name1', bar: 'value1'},
+                    {foo: 'name3', bar: 'value3'}
+                ]});
+
+                expect(carr.constructUpdate()).toEqual({
+                    'styles[1].foo': 'name3',
+                    'styles[1].bar': 'value3',
+                    'styles[2]': null
+                });
+
+                // RENAME A VALUE
+
+                carr.rename('name1', 'name2');
+
+                expect(container).toEqual({styles: [
+                    {foo: 'name2', bar: 'value1'},
+                    {foo: 'name3', bar: 'value3'}
+                ]});
+
+                expect(carr.constructUpdate()).toEqual({
+                    'styles[0].foo': 'name2',
+                    'styles[1].foo': 'name3',
+                    'styles[1].bar': 'value3',
+                    'styles[2]': null
+                });
+
+                // SET A VALUE
+
+                carr.set('name2', 'value2');
+
+                expect(container).toEqual({styles: [
+                    {foo: 'name2', bar: 'value2'},
+                    {foo: 'name3', bar: 'value3'}
+                ]});
+
+                expect(carr.constructUpdate()).toEqual({
+                    'styles[0].foo': 'name2',
+                    'styles[0].bar': 'value2',
+                    'styles[1].foo': 'name3',
+                    'styles[1].bar': 'value3',
+                    'styles[2]': null
+                });
+
+            });
+        });
+
+        describe('with nested valueName', function() {
+            it('gets and sets values', function() {
+                var container = {styles: []};
+
+                var carr = Lib.keyedContainer(container, 'styles', 'foo', 'bar.value');
+
+                carr.set('name1', 'value1');
+
+                expect(container).toEqual({styles: [
+                    {foo: 'name1', bar: {value: 'value1'}}
+                ]});
+
+                expect(carr.get('name1')).toEqual('value1');
+            });
+
+            it('renames values', function() {
+                var container = {styles: []};
+
+                var carr = Lib.keyedContainer(container, 'styles', 'foo', 'bar.value');
+
+                carr.set('name1', 'value1');
+                carr.rename('name1', 'name2');
+
+                expect(container).toEqual({styles: [
+                    {foo: 'name2', bar: {value: 'value1'}}
+                ]});
+
+                expect(carr.get('name2')).toEqual('value1');
+                expect(carr.get('name1')).toBeUndefined();
+            });
+
+            it('constructs updates', function() {
+                var container = {styles: [
+                    {foo: 'name1', bar: {value: 'value1'}},
+                    {foo: 'name2', bar: {value: 'value2'}}
+                ]};
+
+                var carr = Lib.keyedContainer(container, 'styles', 'foo', 'bar.value');
+
+                carr.set('name3', 'value3');
+                carr.remove('name2');
+                carr.rename('name1', 'name4');
+
+                expect(container).toEqual({styles: [
+                    {foo: 'name4', bar: {value: 'value1'}},
+                    {foo: 'name2'},
+                    {foo: 'name3', bar: {value: 'value3'}}
+                ]});
+
+                expect(carr.constructUpdate()).toEqual({
+                    'styles[0].foo': 'name4',
+                    'styles[1].bar.value': null,
+                    'styles[2].foo': 'name3',
+                    'styles[2].bar.value': 'value3',
+                });
+            });
+
+            it('unsets but does not remove items with extra top-level data', function() {
+                var container = {styles: [
+                    {foo: 'name', bar: {value: 'value'}, extra: 'data'}
+                ]};
+
+                var carr = Lib.keyedContainer(container, 'styles', 'foo', 'bar.value');
+
+                carr.remove('name');
+
+                expect(container.styles).toEqual([{foo: 'name', extra: 'data'}]);
+
+                expect(carr.constructUpdate()).toEqual({
+                    'styles[0].bar.value': null,
+                });
+            });
+
+            it('unsets but does not remove items with extra value data', function() {
+                var container = {styles: [
+                    {foo: 'name1', bar: {value: 'value1', extra: 'data'}},
+                    {foo: 'name2', bar: {value: 'value2'}},
+                    {foo: 'name3', bar: {value: 'value3', extra: 'data'}},
+                ]};
+
+                var carr = Lib.keyedContainer(container, 'styles', 'foo', 'bar.value');
+
+                // Remove the first value:
+
+                carr.remove('name1');
+
+                expect(container.styles).toEqual([
+                    {foo: 'name1', bar: {extra: 'data'}},
+                    {foo: 'name2', bar: {value: 'value2'}},
+                    {foo: 'name3', bar: {value: 'value3', extra: 'data'}},
+                ]);
+
+                expect(carr.constructUpdate()).toEqual({
+                    'styles[0].bar.value': null
+                });
+
+                // Remove the second value:
+                carr.remove('name2');
+
+                expect(container.styles).toEqual([
+                    {foo: 'name1', bar: {extra: 'data'}},
+                    {foo: 'name2'},
+                    {foo: 'name3', bar: {value: 'value3', extra: 'data'}},
+                ]);
+
+                expect(carr.constructUpdate()).toEqual({
+                    'styles[0].bar.value': null,
+                    'styles[1].bar.value': null
+                });
+            });
+
+            it('does not compress nested attributes *sigh*', function() {
+                var container = {styles: [
+                    {foo: 'name1', bar: {value: 'value1'}},
+                    {foo: 'name2', bar: {value: 'value2', extra: 'data2'}},
+                ]};
+
+                var carr = Lib.keyedContainer(container, 'styles', 'foo', 'bar.value');
+
+                // Remove the first value:
+
+                carr.remove('name1');
+
+                expect(container.styles).toEqual([
+                    {foo: 'name1'},
+                    {foo: 'name2', bar: {value: 'value2', extra: 'data2'}},
+                ]);
+
+                expect(carr.constructUpdate()).toEqual({
+                    'styles[0].bar.value': null
+                });
+            });
+        });
+    });
+
+    describe('templateString', function() {
+        it('evaluates attributes', function() {
+            expect(Lib.templateString('foo %{bar}', {bar: 'baz'})).toEqual('foo baz');
+        });
+
+        it('evaluates nested properties', function() {
+            expect(Lib.templateString('foo %{bar.baz}', {bar: {baz: 'asdf'}})).toEqual('foo asdf');
+        });
+
+        it('evaluates array nested properties', function() {
+            expect(Lib.templateString('foo %{bar[0].baz}', {bar: [{baz: 'asdf'}]})).toEqual('foo asdf');
+        });
+
+        it('subtitutes multiple matches', function() {
+            expect(Lib.templateString('foo %{group} %{trace}', {group: 'asdf', trace: 'jkl;'})).toEqual('foo asdf jkl;');
+        });
+
+        it('replaces missing matches with empty string', function() {
+            expect(Lib.templateString('foo %{group} %{trace}', {})).toEqual('foo  ');
+        });
+
+        it('replaces empty key with empty string', function() {
+            expect(Lib.templateString('foo %{} %{}', {})).toEqual('foo  ');
+        });
+    });
+
+    describe('relativeAttr()', function() {
+        it('replaces the last part always', function() {
+            expect(Lib.relativeAttr('annotations[3].x', 'y')).toBe('annotations[3].y');
+            expect(Lib.relativeAttr('x', 'z')).toBe('z');
+            expect(Lib.relativeAttr('marker.line.width', 'colorbar.x')).toBe('marker.line.colorbar.x');
+        });
+
+        it('ascends with ^', function() {
+            expect(Lib.relativeAttr('annotations[3].x', '^[2].z')).toBe('annotations[2].z');
+            expect(Lib.relativeAttr('annotations[3].x', '^^margin')).toBe('margin');
+            expect(Lib.relativeAttr('annotations[3].x', '^^margin.r')).toBe('margin.r');
+            expect(Lib.relativeAttr('marker.line.width', '^colorbar.x')).toBe('marker.colorbar.x');
+        });
+
+        it('fails on ascending too far', function() {
+            expect(function() { return Lib.relativeAttr('x', '^y'); }).toThrow();
+            expect(function() { return Lib.relativeAttr('marker.line.width', '^^^colorbar.x'); }).toThrow();
+        });
+
+        it('fails with malformed baseAttr', function() {
+            expect(function() { return Lib.relativeAttr('x[]', 'z'); }).toThrow();
+            expect(function() { return Lib.relativeAttr('x.a]', 'z'); }).toThrow();
+            expect(function() { return Lib.relativeAttr('x[a]', 'z'); }).toThrow();
+            expect(function() { return Lib.relativeAttr('x[3].', 'z'); }).toThrow();
+            expect(function() { return Lib.relativeAttr('x.y.', 'z'); }).toThrow();
+        });
+    });
 });
 
 describe('Queue', function() {
@@ -1648,14 +2017,14 @@ describe('Queue', function() {
         })
         .then(function() {
             expect(gd.undoQueue.index).toEqual(1);
-            expect(gd.undoQueue.queue[0].undo.args[0][1]['marker.color']).toEqual([undefined]);
+            expect(gd.undoQueue.queue[0].undo.args[0][1]['marker.color']).toEqual([null]);
             expect(gd.undoQueue.queue[0].redo.args[0][1]['marker.color']).toEqual('red');
 
             return Plotly.relayout(gd, 'title', 'A title');
         })
         .then(function() {
             expect(gd.undoQueue.index).toEqual(2);
-            expect(gd.undoQueue.queue[1].undo.args[0][1].title).toEqual(undefined);
+            expect(gd.undoQueue.queue[1].undo.args[0][1].title).toEqual(null);
             expect(gd.undoQueue.queue[1].redo.args[0][1].title).toEqual('A title');
 
             return Plotly.restyle(gd, 'mode', 'markers');
@@ -1664,10 +2033,10 @@ describe('Queue', function() {
             expect(gd.undoQueue.index).toEqual(2);
             expect(gd.undoQueue.queue[2]).toBeUndefined();
 
-            expect(gd.undoQueue.queue[1].undo.args[0][1].mode).toEqual([undefined]);
+            expect(gd.undoQueue.queue[1].undo.args[0][1].mode).toEqual([null]);
             expect(gd.undoQueue.queue[1].redo.args[0][1].mode).toEqual('markers');
 
-            expect(gd.undoQueue.queue[0].undo.args[0][1].title).toEqual(undefined);
+            expect(gd.undoQueue.queue[0].undo.args[0][1].title).toEqual(null);
             expect(gd.undoQueue.queue[0].redo.args[0][1].title).toEqual('A title');
 
             return Plotly.restyle(gd, 'transforms[0]', { type: 'filter' });

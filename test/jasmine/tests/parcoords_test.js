@@ -8,6 +8,7 @@ var attributes = require('@src/traces/parcoords/attributes');
 var createGraphDiv = require('../assets/create_graph_div');
 var destroyGraphDiv = require('../assets/destroy_graph_div');
 var mouseEvent = require('../assets/mouse_event');
+var supplyAllDefaults = require('../assets/supply_defaults');
 
 // mock with two dimensions (one panel); special case, e.g. left and right panel is obv. the same
 var mock2 = require('@mocks/gl2d_parcoords_2.json');
@@ -33,11 +34,31 @@ describe('parcoords initialization tests', function() {
         it('should not coerce trace opacity', function() {
             var gd = Lib.extendDeep({}, mock1);
 
-            Plots.supplyDefaults(gd);
+            supplyAllDefaults(gd);
 
             expect(gd._fullData[0].opacity).toBeUndefined();
         });
 
+        it('should use global font as label, tick and range font defaults', function() {
+            var gd = Lib.extendDeep({}, mock1);
+            gd.layout.font = {
+                family: 'Gravitas',
+                size: 20,
+                color: 'blue'
+            };
+
+            supplyAllDefaults(gd);
+
+            var expected = {
+                family: 'Gravitas',
+                size: 17,
+                color: 'blue'
+            };
+
+            expect(gd._fullData[0].labelfont).toEqual(expected);
+            expect(gd._fullData[0].tickfont).toEqual(expected);
+            expect(gd._fullData[0].rangefont).toEqual(expected);
+        });
     });
 
     describe('parcoords defaults', function() {
@@ -45,7 +66,7 @@ describe('parcoords initialization tests', function() {
         function _supply(traceIn) {
             var traceOut = { visible: true },
                 defaultColor = '#444',
-                layout = { };
+                layout = { font: Plots.layoutAttributes.font };
 
             Parcoords.supplyDefaults(traceIn, traceOut, defaultColor, layout);
 
@@ -149,7 +170,7 @@ describe('parcoords initialization tests', function() {
         function _calc(trace) {
             var gd = { data: [trace] };
 
-            Plots.supplyDefaults(gd);
+            supplyAllDefaults(gd);
 
             var fullTrace = gd._fullData[0];
             Parcoords.calc(gd, fullTrace);
@@ -768,7 +789,7 @@ describe('@noCI parcoords', function() {
                 expect(gd.data.length).toEqual(1);
 
                 Plotly.deleteTraces(gd, 0).then(function() {
-                    expect(d3.selectAll('.parcoords-line-layers').node()).toEqual(null);
+                    expect(d3.selectAll('.gl-canvas').node(0)).toEqual(null);
                     expect(gd.data.length).toEqual(0);
                     done();
                 });
@@ -786,23 +807,23 @@ describe('@noCI parcoords', function() {
             Plotly.plot(gd, mockCopy)
                 .then(function() {
                     expect(gd.data.length).toEqual(1);
-                    expect(document.querySelectorAll('.yAxis').length).toEqual(10);
+                    expect(document.querySelectorAll('.y-axis').length).toEqual(10);
                     return Plotly.plot(gd, mockCopy2);
                 })
                 .then(function() {
                     expect(gd.data.length).toEqual(2);
-                    expect(document.querySelectorAll('.yAxis').length).toEqual(10 + 7);
+                    expect(document.querySelectorAll('.y-axis').length).toEqual(10 + 7);
                     return Plotly.deleteTraces(gd, [0]);
                 })
                 .then(function() {
-                    expect(document.querySelectorAll('.parcoords-line-layers').length).toEqual(1);
-                    expect(document.querySelectorAll('.yAxis').length).toEqual(7);
+                    expect(document.querySelectorAll('.gl-canvas').length).toEqual(3);
+                    expect(document.querySelectorAll('.y-axis').length).toEqual(7);
                     expect(gd.data.length).toEqual(1);
                     return Plotly.deleteTraces(gd, 0);
                 })
                 .then(function() {
-                    expect(document.querySelectorAll('.parcoords-line-layers').length).toEqual(0);
-                    expect(document.querySelectorAll('.yAxis').length).toEqual(0);
+                    expect(document.querySelectorAll('.gl-canvas').length).toEqual(0);
+                    expect(document.querySelectorAll('.y-axis').length).toEqual(0);
                     expect(gd.data.length).toEqual(0);
                     done();
                 });
@@ -849,13 +870,13 @@ describe('@noCI parcoords', function() {
                 mockCopy2.data[0].domain = {x: [0.55, 1]};
                 mockCopy2.data[0].dimensions.splice(3, 4);
 
-                expect(document.querySelectorAll('.parcoords-line-layers').length).toEqual(0);
+                expect(document.querySelectorAll('.gl-container').length).toEqual(0);
 
                 Plotly.plot(gd, mockCopy)
                     .then(function() {
 
                         expect(1).toEqual(1);
-                        expect(document.querySelectorAll('.parcoords-line-layers').length).toEqual(1);
+                        expect(document.querySelectorAll('.gl-container').length).toEqual(1);
                         expect(gd.data.length).toEqual(1);
 
                         return Plotly.plot(gd, mockCopy2);
@@ -863,7 +884,7 @@ describe('@noCI parcoords', function() {
                     .then(function() {
 
                         expect(1).toEqual(1);
-                        expect(document.querySelectorAll('.parcoords-line-layers').length).toEqual(2);
+                        expect(document.querySelectorAll('.gl-container').length).toEqual(1);
                         expect(gd.data.length).toEqual(2);
 
                         done();
@@ -879,19 +900,18 @@ describe('@noCI parcoords', function() {
                 mockCopy2.data[0].domain = {y: [0.65, 1]};
                 mockCopy2.data[0].dimensions.splice(3, 4);
 
-                expect(document.querySelectorAll('.parcoords-line-layers').length).toEqual(0);
+                expect(document.querySelectorAll('.gl-container').length).toEqual(0);
 
                 Plotly.plot(gd, mockCopy)
                     .then(function() {
 
-                        expect(document.querySelectorAll('.parcoords-line-layers').length).toEqual(1);
+                        expect(document.querySelectorAll('.gl-container').length).toEqual(1);
                         expect(gd.data.length).toEqual(1);
 
                         return Plotly.addTraces(gd, [mockCopy2.data[0]]);
                     })
                     .then(function() {
-
-                        expect(document.querySelectorAll('.parcoords-line-layers').length).toEqual(2);
+                        expect(document.querySelectorAll('.gl-container').length).toEqual(1);
                         expect(gd.data.length).toEqual(2);
 
                         done();
@@ -925,12 +945,12 @@ describe('@noCI parcoords', function() {
                 mockCopy2.data[0].dimensions[2].tickvals = [0, 1, 2, 2.5, 3];
                 mockCopy2.data[0].dimensions[2].values = mockCopy2.data[0].dimensions[2].values.map(numberUpdater);
 
-                expect(document.querySelectorAll('.parcoords-line-layers').length).toEqual(0);
+                expect(document.querySelectorAll('.gl-container').length).toEqual(0);
 
                 Plotly.plot(gd, mockCopy)
                     .then(function() {
 
-                        expect(document.querySelectorAll('.parcoords-line-layers').length).toEqual(1);
+                        expect(document.querySelectorAll('.gl-container').length).toEqual(1);
                         expect(gd.data.length).toEqual(1);
 
                         return Plotly.restyle(gd, {
@@ -940,7 +960,7 @@ describe('@noCI parcoords', function() {
                     })
                     .then(function() {
 
-                        expect(document.querySelectorAll('.parcoords-line-layers').length).toEqual(1);
+                        expect(document.querySelectorAll('.gl-container').length).toEqual(1);
                         expect(gd.data.length).toEqual(1);
 
                         done();
