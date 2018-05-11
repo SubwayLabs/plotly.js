@@ -1,5 +1,5 @@
 /**
-* Copyright 2012-2017, Plotly, Inc.
+* Copyright 2012-2018, Plotly, Inc.
 * All rights reserved.
 *
 * This source code is licensed under the MIT license found in the
@@ -477,7 +477,8 @@ module.exports = {
         valType: 'data_array',
         editType: 'calc',
         description: [
-            'For polar chart only.',
+            'For legacy polar chart only.',
+            'Please switch to *scatterpolar* trace type.',
             'Sets the radial coordinates.'
         ].join('')
     },
@@ -485,7 +486,8 @@ module.exports = {
         valType: 'data_array',
         editType: 'calc',
         description: [
-            'For polar chart only.',
+            'For legacy polar chart only.',
+            'Please switch to *scatterpolar* trace type.',
             'Sets the angular coordinates.'
         ].join('')
     },

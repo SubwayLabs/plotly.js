@@ -1,5 +1,5 @@
 /**
-* Copyright 2012-2017, Plotly, Inc.
+* Copyright 2012-2018, Plotly, Inc.
 * All rights reserved.
 *
 * This source code is licensed under the MIT license found in the
@@ -19,7 +19,7 @@ var geoJsonUtils = require('../../lib/geojson_utils');
 var subTypes = require('../scatter/subtypes');
 var style = require('./style');
 
-module.exports = function plot(geo, calcData) {
+module.exports = function plot(gd, geo, calcData) {
     for(var i = 0; i < calcData.length; i++) {
         calcGeoJSON(calcData[i], geo.topojson);
     }
@@ -79,7 +79,7 @@ module.exports = function plot(geo, calcData) {
         }
 
         // call style here within topojson request callback
-        style(geo.graphDiv, calcTrace);
+        style(gd, calcTrace);
     });
 };
 

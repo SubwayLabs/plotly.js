@@ -1,5 +1,5 @@
 /**
-* Copyright 2012-2017, Plotly, Inc.
+* Copyright 2012-2018, Plotly, Inc.
 * All rights reserved.
 *
 * This source code is licensed under the MIT license found in the
@@ -22,12 +22,14 @@ var createOptions = require('./convert');
 var createCamera = require('./camera');
 var convertHTMLToUnicode = require('../../lib/html2unicode');
 var showNoWebGlMsg = require('../../lib/show_no_webgl_msg');
-var axisConstraints = require('../../plots/cartesian/constraints');
+var axisConstraints = require('../cartesian/constraints');
 var enforceAxisConstraints = axisConstraints.enforce;
 var cleanAxisConstraints = axisConstraints.clean;
 
 var AXES = ['xaxis', 'yaxis'];
 var STATIC_CANVAS, STATIC_CONTEXT;
+
+var SUBPLOT_PATTERN = require('../cartesian/constants').SUBPLOT_PATTERN;
 
 
 function Scene2D(options, fullLayout) {
@@ -116,6 +118,7 @@ proto.makeFramework = function() {
 
         var gl = getContext({
             canvas: liveCanvas,
+            preserveDrawingBuffer: true,
             premultipliedAlpha: true
         });
 
@@ -179,19 +182,23 @@ proto.toImage = function(format) {
     if(!format) format = 'png';
 
     this.stopped = true;
+
     if(this.staticPlot) this.container.appendChild(STATIC_CANVAS);
 
     // update canvas size
     this.updateSize(this.canvas);
 
-    // force redraw
-    this.glplot.setDirty();
-    this.glplot.draw();
 
     // grab context and yank out pixels
     var gl = this.glplot.gl,
         w = gl.drawingBufferWidth,
         h = gl.drawingBufferHeight;
+
+    // force redraw
+    gl.clearColor(1, 1, 1, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    this.glplot.setDirty();
+    this.glplot.draw();
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
@@ -296,9 +303,9 @@ function compareTicks(a, b) {
 proto.updateRefs = function(newFullLayout) {
     this.fullLayout = newFullLayout;
 
-    var spmatch = Axes.subplotMatch,
-        xaxisName = 'xaxis' + this.id.match(spmatch)[1],
-        yaxisName = 'yaxis' + this.id.match(spmatch)[2];
+    var spmatch = this.id.match(SUBPLOT_PATTERN);
+    var xaxisName = 'xaxis' + spmatch[1];
+    var yaxisName = 'yaxis' + spmatch[2];
 
     this.xaxis = this.fullLayout[xaxisName];
     this.yaxis = this.fullLayout[yaxisName];

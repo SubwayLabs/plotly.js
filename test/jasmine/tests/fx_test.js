@@ -24,7 +24,11 @@ describe('Fx defaults', function() {
 
     it('should default (blank version)', function() {
         var layoutOut = _supply().layout;
-        expect(layoutOut.hovermode).toBe('closest', 'hovermode to closest');
+        // we get a blank cartesian subplot that has no traces...
+        // so all traces are horizontal -> hovermode defaults to y
+        // we could add a special case to push this back to x, but
+        // it seems like it has no practical consequence.
+        expect(layoutOut.hovermode).toBe('y', 'hovermode to y');
         expect(layoutOut.dragmode).toBe('zoom', 'dragmode to zoom');
     });
 
@@ -227,11 +231,12 @@ describe('relayout', function() {
 
             return Plotly.relayout(gd, 'yaxis.fixedrange', true);
         }).then(function() {
-            assertMainDrag('pointer', false);
+            // still active with fixedrange because we're handling clicks here too.
+            assertMainDrag('pointer', true);
 
             return Plotly.relayout(gd, 'dragmode', 'drag');
         }).then(function() {
-            assertMainDrag('pointer', false);
+            assertMainDrag('pointer', true);
 
             return Plotly.relayout(gd, 'dragmode', 'lasso');
         }).then(function() {

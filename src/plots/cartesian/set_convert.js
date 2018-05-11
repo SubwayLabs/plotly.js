@@ -1,5 +1,5 @@
 /**
-* Copyright 2012-2017, Plotly, Inc.
+* Copyright 2012-2018, Plotly, Inc.
 * All rights reserved.
 *
 * This source code is licensed under the MIT license found in the
@@ -276,14 +276,16 @@ module.exports = function setConvert(ax, fullLayout) {
      * optional param rangeAttr: operate on a different attribute, like
      * ax._r, rather than ax.range
      */
-    ax.cleanRange = function(rangeAttr) {
+    ax.cleanRange = function(rangeAttr, opts) {
+        if(!opts) opts = {};
         if(!rangeAttr) rangeAttr = 'range';
-        var range = Lib.nestedProperty(ax, rangeAttr).get(),
-            i, dflt;
+
+        var range = Lib.nestedProperty(ax, rangeAttr).get();
+        var i, dflt;
 
         if(ax.type === 'date') dflt = Lib.dfltRange(ax.calendar);
         else if(axLetter === 'y') dflt = constants.DFLTRANGEY;
-        else dflt = constants.DFLTRANGEX;
+        else dflt = opts.dfltRange || constants.DFLTRANGEX;
 
         // make sure we don't later mutate the defaults
         dflt = dflt.slice();
@@ -455,6 +457,7 @@ module.exports = function setConvert(ax, fullLayout) {
     var locale = fullLayout._d3locale;
     if(ax.type === 'date') {
         ax._dateFormat = locale ? locale.timeFormat.utc : d3.time.format.utc;
+        ax._extraFormat = fullLayout._extraFormat;
     }
     // occasionally we need _numFormat to pass through
     // even though it won't be needed by this axis

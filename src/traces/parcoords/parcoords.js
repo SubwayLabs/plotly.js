@@ -1,5 +1,5 @@
 /**
-* Copyright 2012-2017, Plotly, Inc.
+* Copyright 2012-2018, Plotly, Inc.
 * All rights reserved.
 *
 * This source code is licensed under the MIT license found in the
@@ -305,6 +305,7 @@ module.exports = function(root, svg, parcoordsLineLayers, styledData, layout, ca
         .filter(function(d) {
             return d.pick;
         })
+        .style('pointer-events', 'auto')
         .on('mousemove', function(d) {
             if(linePickActive && d.lineLayer && callbacks && callbacks.hover) {
                 var event = d3.event;

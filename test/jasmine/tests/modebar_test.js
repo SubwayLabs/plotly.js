@@ -25,12 +25,13 @@ describe('ModeBar', function() {
         return parent;
     }
 
-    function getMockGraphInfo() {
+    function getMockGraphInfo(xaxes, yaxes) {
         return {
             _fullLayout: {
                 dragmode: 'zoom',
                 _paperdiv: d3.select(getMockContainerTree()),
-                _has: Plots._hasPlotType
+                _has: Plots._hasPlotType,
+                _subplots: {xaxis: xaxes || [], yaxis: yaxes || []}
             },
             _fullData: [],
             _context: {
@@ -188,7 +189,7 @@ describe('ModeBar', function() {
                 ['toggleSpikelines', 'hoverClosestCartesian', 'hoverCompareCartesian']
             ]);
 
-            var gd = getMockGraphInfo();
+            var gd = getMockGraphInfo(['x'], ['y']);
             gd._fullLayout._basePlotModules = [{ name: 'cartesian' }];
             gd._fullLayout.xaxis = {fixedrange: false};
 
@@ -206,7 +207,7 @@ describe('ModeBar', function() {
                 ['toggleSpikelines', 'hoverClosestCartesian', 'hoverCompareCartesian']
             ]);
 
-            var gd = getMockGraphInfo();
+            var gd = getMockGraphInfo(['x'], ['y']);
             gd._fullLayout._basePlotModules = [{ name: 'cartesian' }];
             gd._fullLayout.xaxis = {fixedrange: false};
             gd._fullData = [{
@@ -230,7 +231,7 @@ describe('ModeBar', function() {
                 ['toggleSpikelines', 'hoverClosestCartesian', 'hoverCompareCartesian']
             ]);
 
-            var gd = getMockGraphInfo();
+            var gd = getMockGraphInfo(['x'], ['y']);
             gd._fullLayout._basePlotModules = [{ name: 'cartesian' }];
             gd._fullLayout.xaxis = {fixedrange: false};
             gd._fullData = [{
@@ -364,7 +365,7 @@ describe('ModeBar', function() {
                 ['hoverClosestGl2d']
             ]);
 
-            var gd = getMockGraphInfo();
+            var gd = getMockGraphInfo(['x'], ['y']);
             gd._fullLayout._basePlotModules = [{ name: 'gl2d' }];
             gd._fullLayout.xaxis = {fixedrange: false};
 
@@ -427,7 +428,7 @@ describe('ModeBar', function() {
                 ['toggleHover']
             ]);
 
-            var gd = getMockGraphInfo();
+            var gd = getMockGraphInfo(['x'], ['y']);
             gd._fullData = [{
                 type: 'scatter',
                 visible: true,
@@ -569,7 +570,7 @@ describe('ModeBar', function() {
 
         // gives 11 buttons in 5 groups by default
         function setupGraphInfo() {
-            var gd = getMockGraphInfo();
+            var gd = getMockGraphInfo(['x'], ['y']);
             gd._fullLayout._basePlotModules = [{ name: 'cartesian' }];
             gd._fullLayout.xaxis = {fixedrange: false};
             return gd;
@@ -860,13 +861,13 @@ describe('ModeBar', function() {
             });
 
             describe('button toggleSpikelines', function() {
-                it('should update layout hovermode', function() {
+                it('should not change layout hovermode', function() {
                     expect(gd._fullLayout.hovermode).toBe('x');
                     assertActive(hovermodeButtons, buttonCompare);
 
                     buttonToggle.click();
-                    expect(gd._fullLayout.hovermode).toBe('closest');
-                    assertActive(hovermodeButtons, buttonClosest);
+                    expect(gd._fullLayout.hovermode).toBe('x');
+                    assertActive(hovermodeButtons, buttonCompare);
                 });
                 it('should makes spikelines visible', function() {
                     buttonToggle.click();
@@ -875,22 +876,25 @@ describe('ModeBar', function() {
                     buttonToggle.click();
                     expect(gd._fullLayout._cartesianSpikesEnabled).toBe('off');
                 });
-                it('should become disabled when hovermode is switched off closest', function() {
+                it('should not become disabled when hovermode is switched off closest', function() {
                     buttonToggle.click();
                     expect(gd._fullLayout._cartesianSpikesEnabled).toBe('on');
 
                     buttonCompare.click();
-                    expect(gd._fullLayout._cartesianSpikesEnabled).toBe('off');
+                    expect(gd._fullLayout._cartesianSpikesEnabled).toBe('on');
                 });
-                it('should be re-enabled when hovermode is set to closest if it was previously on', function() {
+                it('should keep the state on changing the hovermode', function() {
                     buttonToggle.click();
                     expect(gd._fullLayout._cartesianSpikesEnabled).toBe('on');
 
                     buttonCompare.click();
+                    expect(gd._fullLayout._cartesianSpikesEnabled).toBe('on');
+
+                    buttonToggle.click();
                     expect(gd._fullLayout._cartesianSpikesEnabled).toBe('off');
 
                     buttonClosest.click();
-                    expect(gd._fullLayout._cartesianSpikesEnabled).toBe('on');
+                    expect(gd._fullLayout._cartesianSpikesEnabled).toBe('off');
                 });
             });
         });

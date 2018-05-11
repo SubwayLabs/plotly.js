@@ -1,5 +1,5 @@
 /**
-* Copyright 2012-2017, Plotly, Inc.
+* Copyright 2012-2018, Plotly, Inc.
 * All rights reserved.
 *
 * This source code is licensed under the MIT license found in the
@@ -111,6 +111,13 @@ module.exports = function calc(gd, trace) {
             cdi.lo = 4 * cdi.q1 - 3 * cdi.q3;
             cdi.uo = 4 * cdi.q3 - 3 * cdi.q1;
 
+
+            // lower and upper notches ~95% Confidence Intervals for median
+            var iqr = cdi.q3 - cdi.q1;
+            var mci = 1.57 * iqr / Math.sqrt(bvLen);
+            cdi.ln = cdi.med - mci;
+            cdi.un = cdi.med + mci;
+
             cd.push(cdi);
         }
     }
@@ -135,6 +142,11 @@ module.exports = function calc(gd, trace) {
                 uf: _(gd, 'upper fence:')
             }
         };
+
+        // don't show labels in candlestick hover labels
+        if(trace._fullInput && trace._fullInput.type === 'candlestick') {
+            delete cd[0].t.labels;
+        }
 
         fullLayout[numKey]++;
         return cd;

@@ -54,13 +54,13 @@ and require plotly.js using CommonJS as `var Plotly = require('plotly.js');` or 
 #### Use the plotly.js CDN hosted by Fastly
 ```html
 <!-- Latest compiled and minified plotly.js JavaScript -->
-<script type="text/javascript" src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 
 <!-- OR use a specific plotly.js release (e.g. version 1.5.0) -->
-<script type="text/javascript" src="https://cdn.plot.ly/plotly-1.5.0.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-1.5.0.min.js"></script>
 
 <!-- OR an un-minified version is also available -->
-<script type="text/javascript" src="https://cdn.plot.ly/plotly-latest.js"></script>
+<script src="https://cdn.plot.ly/plotly-latest.js"></script>
 ```
 
 and use the `Plotly` object in the window scope.
@@ -99,7 +99,7 @@ To learn more about the plotly.js module architecture, refer to our [modularizin
 Important: the plotly.js code base contains some non-ascii characters. Therefore, please make sure to set the `charset` attribute to `"utf-8"` in the script tag that imports your plotly.js bundle. For example:
 
 ```html
-<script type="text/javascript" src="my-plotly-bundle.js" charset="utf-8"></script>
+<script src="my-plotly-bundle.js" charset="utf-8"></script>
 ```
 
 
@@ -111,7 +111,7 @@ A repo that demonstrates how to build plotly.js with Webpack can be found [here]
 ```js
 ...
     module: {
-        loaders: [
+        rules: [
             {
                 test: /\.js$/,
                 loader: 'ify-loader'
@@ -187,7 +187,7 @@ plotly.js charts can also be created and saved online for free at [plot.ly/creat
 
 ## Copyright and license
 
-Code and documentation copyright 2017 Plotly, Inc.
+Code and documentation copyright 2018 Plotly, Inc.
 
 Code released under the [MIT license](https://github.com/plotly/plotly.js/blob/master/LICENSE).
 

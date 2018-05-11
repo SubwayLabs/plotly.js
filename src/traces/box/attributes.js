@@ -1,5 +1,5 @@
 /**
-* Copyright 2012-2017, Plotly, Inc.
+* Copyright 2012-2018, Plotly, Inc.
 * All rights reserved.
 *
 * This source code is licensed under the MIT license found in the
@@ -83,6 +83,27 @@ module.exports = {
             'Sets the width of the whiskers relative to',
             'the box\' width.',
             'For example, with 1, the whiskers are as wide as the box(es).'
+        ].join(' ')
+    },
+    notched: {
+        valType: 'boolean',
+        role: 'style',
+        editType: 'calcIfAutorange',
+        description: [
+            'Determines whether or not notches should be drawn.'
+        ].join(' ')
+    },
+    notchwidth: {
+        valType: 'number',
+        min: 0,
+        max: 0.5,
+        dflt: 0.25,
+        role: 'style',
+        editType: 'calcIfAutorange',
+        description: [
+            'Sets the width of the notches relative to',
+            'the box\' width.',
+            'For example, with 0, the notches are as wide as the box(es).'
         ].join(' ')
     },
     boxpoints: {

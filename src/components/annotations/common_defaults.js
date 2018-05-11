@@ -1,5 +1,5 @@
 /**
-* Copyright 2012-2017, Plotly, Inc.
+* Copyright 2012-2018, Plotly, Inc.
 * All rights reserved.
 *
 * This source code is licensed under the MIT license found in the
@@ -24,7 +24,7 @@ module.exports = function handleAnnotationCommonDefaults(annIn, annOut, fullLayo
     var borderWidth = coerce('borderwidth');
     var showArrow = coerce('showarrow');
 
-    coerce('text', showArrow ? ' ' : 'new text');
+    coerce('text', showArrow ? ' ' : fullLayout._dfltTitle.annotation);
     coerce('textangle');
     Lib.coerceFont(coerce, 'font', fullLayout.font);
 
