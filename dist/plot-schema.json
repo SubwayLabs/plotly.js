@@ -2307,6 +2307,21 @@
                     "editType": "calcIfAutorange",
                     "description": "Sets the width of the whiskers relative to the box' width. For example, with 1, the whiskers are as wide as the box(es)."
                 },
+                "notched": {
+                    "valType": "boolean",
+                    "role": "style",
+                    "editType": "calcIfAutorange",
+                    "description": "Determines whether or not notches should be drawn."
+                },
+                "notchwidth": {
+                    "valType": "number",
+                    "min": 0,
+                    "max": 0.5,
+                    "dflt": 0.25,
+                    "role": "style",
+                    "editType": "calcIfAutorange",
+                    "description": "Sets the width of the notches relative to the box' width. For example, with 0, the notches are as wide as the box(es)."
+                },
                 "boxpoints": {
                     "valType": "enumerated",
                     "values": [
@@ -8315,6 +8330,17 @@
                     "description": "Sets the maximum number of contour levels. The actual number of contours will be chosen automatically to be less than or equal to the value of `ncontours`. Has an effect only if `autocontour` is *true* or if `contours.size` is missing."
                 },
                 "contours": {
+                    "type": {
+                        "valType": "enumerated",
+                        "values": [
+                            "levels",
+                            "constraint"
+                        ],
+                        "dflt": "levels",
+                        "role": "info",
+                        "editType": "calc",
+                        "description": "If `levels`, the data is represented as a contour plot with multiple levels displayed. If `constraint`, the data is represented as constraints with the invalid region shaded as specified by the `operation` and `value` parameters."
+                    },
                     "start": {
                         "valType": "number",
                         "dflt": null,
@@ -8403,6 +8429,35 @@
                         "role": "style",
                         "editType": "plot",
                         "description": "Sets the contour label formatting rule using d3 formatting mini-language which is very similar to Python, see: https://github.com/d3/d3-format/blob/master/README.md#locale_format."
+                    },
+                    "operation": {
+                        "valType": "enumerated",
+                        "values": [
+                            "=",
+                            "<",
+                            ">=",
+                            ">",
+                            "<=",
+                            "[]",
+                            "()",
+                            "[)",
+                            "(]",
+                            "][",
+                            ")(",
+                            "](",
+                            ")["
+                        ],
+                        "role": "info",
+                        "dflt": "=",
+                        "editType": "calc",
+                        "description": "Sets the constraint operation. *=* keeps regions equal to `value` *<* and *<=* keep regions less than `value` *>* and *>=* keep regions greater than `value` *[]*, *()*, *[)*, and *(]* keep regions inside `value[0]` to `value[1]` *][*, *)(*, *](*, *)[* keep regions outside `value[0]` to value[1]` Open vs. closed intervals make no difference to constraint display, but all versions are allowed for consistency with filter transforms."
+                    },
+                    "value": {
+                        "valType": "any",
+                        "dflt": 0,
+                        "role": "info",
+                        "editType": "calc",
+                        "description": "Sets the value or values of the constraint boundary. When `operation` is set to one of the comparison values (=,<,>=,>,<=) *value* is expected to be a number. When `operation` is set to one of the interval values ([],(),[),(],][,)(,](,)[) *value* is expected to be an array of two numbers where the first is the lower bound and the second is the upper bound."
                     },
                     "editType": "calc",
                     "impliedEdits": {
@@ -9922,6 +9977,12 @@
                     "editType": "calc",
                     "description": "Determines whether or not gaps (i.e. {nan} or missing values) in the `z` data are filled in."
                 },
+                "fillcolor": {
+                    "valType": "color",
+                    "role": "style",
+                    "editType": "calc",
+                    "description": "Sets the fill color if `contours.type` is *constraint*. Defaults to a half-transparent variant of the line color, marker color, or marker line color, whichever is available."
+                },
                 "autocontour": {
                     "valType": "boolean",
                     "dflt": true,
@@ -9939,6 +10000,17 @@
                     "description": "Sets the maximum number of contour levels. The actual number of contours will be chosen automatically to be less than or equal to the value of `ncontours`. Has an effect only if `autocontour` is *true* or if `contours.size` is missing."
                 },
                 "contours": {
+                    "type": {
+                        "valType": "enumerated",
+                        "values": [
+                            "levels",
+                            "constraint"
+                        ],
+                        "dflt": "levels",
+                        "role": "info",
+                        "editType": "calc",
+                        "description": "If `levels`, the data is represented as a contour plot with multiple levels displayed. If `constraint`, the data is represented as constraints with the invalid region shaded as specified by the `operation` and `value` parameters."
+                    },
                     "start": {
                         "valType": "number",
                         "dflt": null,
@@ -10027,6 +10099,35 @@
                         "role": "style",
                         "editType": "plot",
                         "description": "Sets the contour label formatting rule using d3 formatting mini-language which is very similar to Python, see: https://github.com/d3/d3-format/blob/master/README.md#locale_format."
+                    },
+                    "operation": {
+                        "valType": "enumerated",
+                        "values": [
+                            "=",
+                            "<",
+                            ">=",
+                            ">",
+                            "<=",
+                            "[]",
+                            "()",
+                            "[)",
+                            "(]",
+                            "][",
+                            ")(",
+                            "](",
+                            ")["
+                        ],
+                        "role": "info",
+                        "dflt": "=",
+                        "editType": "calc",
+                        "description": "Sets the constraint operation. *=* keeps regions equal to `value` *<* and *<=* keep regions less than `value` *>* and *>=* keep regions greater than `value` *[]*, *()*, *[)*, and *(]* keep regions inside `value[0]` to `value[1]` *][*, *)(*, *](*, *)[* keep regions outside `value[0]` to value[1]` Open vs. closed intervals make no difference to constraint display, but all versions are allowed for consistency with filter transforms."
+                    },
+                    "value": {
+                        "valType": "any",
+                        "dflt": 0,
+                        "role": "info",
+                        "editType": "calc",
+                        "description": "Sets the value or values of the constraint boundary. When `operation` is set to one of the comparison values (=,<,>=,>,<=) *value* is expected to be a number. When `operation` is set to one of the interval values ([],(),[),(],][,)(,](,)[) *value* is expected to be an array of two numbers where the first is the lower bound and the second is the upper bound."
                     },
                     "editType": "calc",
                     "impliedEdits": {
@@ -19521,7 +19622,7 @@
                     "min": 0,
                     "max": 1,
                     "dflt": 1,
-                    "editType": "style",
+                    "editType": "calc",
                     "description": "Sets the opacity of the trace."
                 },
                 "name": {
@@ -28761,31 +28862,11 @@
                     "editType": "calc+clearAxisTypes",
                     "description": "If *array*, the heatmap's y coordinates are given by *y* (the default behavior when `y` is provided) If *scaled*, the heatmap's y coordinates are given by *y0* and *dy* (the default behavior when `y` is not provided)"
                 },
-                "mode": {
-                    "valType": "flaglist",
-                    "flags": [
-                        "lines",
-                        "fill"
-                    ],
-                    "extras": [
-                        "none"
-                    ],
-                    "role": "info",
-                    "editType": "calc",
-                    "description": "The mode."
-                },
-                "connectgaps": {
-                    "valType": "boolean",
-                    "dflt": false,
-                    "role": "info",
-                    "editType": "calc",
-                    "description": "Determines whether or not gaps (i.e. {nan} or missing values) in the `z` data are filled in."
-                },
                 "fillcolor": {
                     "valType": "color",
                     "role": "style",
                     "editType": "calc",
-                    "description": "Sets the fill color. Defaults to a half-transparent variant of the line color, marker color, or marker line color, whichever is available."
+                    "description": "Sets the fill color if `contours.type` is *constraint*. Defaults to a half-transparent variant of the line color, marker color, or marker line color, whichever is available."
                 },
                 "autocontour": {
                     "valType": "boolean",
@@ -28918,23 +28999,25 @@
                             "][",
                             ")(",
                             "](",
-                            ")[",
-                            "{}",
-                            "}{"
+                            ")["
                         ],
                         "role": "info",
                         "dflt": "=",
                         "editType": "calc",
-                        "description": "Sets the filter operation. *=* keeps items equal to `value` *<* keeps items less than `value` *<=* keeps items less than or equal to `value` *>* keeps items greater than `value` *>=* keeps items greater than or equal to `value` *[]* keeps items inside `value[0]` to value[1]` including both bounds` *()* keeps items inside `value[0]` to value[1]` excluding both bounds` *[)* keeps items inside `value[0]` to value[1]` including `value[0]` but excluding `value[1] *(]* keeps items inside `value[0]` to value[1]` excluding `value[0]` but including `value[1] *][* keeps items outside `value[0]` to value[1]` and equal to both bounds` *)(* keeps items outside `value[0]` to value[1]` *](* keeps items outside `value[0]` to value[1]` and equal to `value[0]` *)[* keeps items outside `value[0]` to value[1]` and equal to `value[1]`"
+                        "description": "Sets the constraint operation. *=* keeps regions equal to `value` *<* and *<=* keep regions less than `value` *>* and *>=* keep regions greater than `value` *[]*, *()*, *[)*, and *(]* keep regions inside `value[0]` to `value[1]` *][*, *)(*, *](*, *)[* keep regions outside `value[0]` to value[1]` Open vs. closed intervals make no difference to constraint display, but all versions are allowed for consistency with filter transforms."
                     },
                     "value": {
                         "valType": "any",
                         "dflt": 0,
                         "role": "info",
                         "editType": "calc",
-                        "description": "Sets the value or values by which to filter by. Values are expected to be in the same type as the data linked to *target*. When `operation` is set to one of the inequality values (=,<,>=,>,<=) *value* is expected to be a number or a string. When `operation` is set to one of the interval value ([],(),[),(],][,)(,](,)[) *value* is expected to be 2-item array where the first item is the lower bound and the second item is the upper bound. When `operation`, is set to one of the set value ({},}{) *value* is expected to be an array with as many items as the desired set elements."
+                        "description": "Sets the value or values of the constraint boundary. When `operation` is set to one of the comparison values (=,<,>=,>,<=) *value* is expected to be a number. When `operation` is set to one of the interval values ([],(),[),(],][,)(,](,)[) *value* is expected to be an array of two numbers where the first is the lower bound and the second is the upper bound."
                     },
                     "editType": "calc",
+                    "impliedEdits": {
+                        "autocontour": false,
+                        "role": "object"
+                    },
                     "role": "object"
                 },
                 "line": {
@@ -34733,6 +34816,12 @@
                     "editType": "none",
                     "description": "Sets the hover text formatting rule using d3 formatting mini-languages which are very similar to those in Python. For numbers, see: https://github.com/d3/d3-format/blob/master/README.md#locale_format And for dates see: https://github.com/d3/d3-time-format/blob/master/README.md#locale_format We add one item to d3's date formatter: *%{n}f* for fractional seconds with n digits. For example, *2016-10-13 09:15:23.456* with tickformat *%H~%M~%S.%2f* would display *09~15~23.46*"
                 },
+                "numberformatter": {
+                    "valType": "any",
+                    "dflt": null,
+                    "role": "style",
+                    "description": "Supply a custom formatting function for numeric tick labels on linear and log plots"
+                },
                 "showline": {
                     "valType": "boolean",
                     "dflt": false,
@@ -34806,6 +34895,11 @@
                     "role": "info",
                     "editType": "plot",
                     "description": "If set to an opposite-letter axis id (e.g. `x2`, `y`), this axis is bound to the corresponding opposite-letter axis. If set to *free*, this axis' position is determined by `position`."
+                },
+                "anchoroffset": {
+                    "valType": "boolean",
+                    "role": "info",
+                    "description": "If set to true and an anchor is present, the axis will be offset by any previous axes that share the same letter axis and side."
                 },
                 "side": {
                     "valType": "enumerated",
@@ -35642,6 +35736,12 @@
                     "editType": "none",
                     "description": "Sets the hover text formatting rule using d3 formatting mini-languages which are very similar to those in Python. For numbers, see: https://github.com/d3/d3-format/blob/master/README.md#locale_format And for dates see: https://github.com/d3/d3-time-format/blob/master/README.md#locale_format We add one item to d3's date formatter: *%{n}f* for fractional seconds with n digits. For example, *2016-10-13 09:15:23.456* with tickformat *%H~%M~%S.%2f* would display *09~15~23.46*"
                 },
+                "numberformatter": {
+                    "valType": "any",
+                    "dflt": null,
+                    "role": "style",
+                    "description": "Supply a custom formatting function for numeric tick labels on linear and log plots"
+                },
                 "showline": {
                     "valType": "boolean",
                     "dflt": false,
@@ -35715,6 +35815,11 @@
                     "role": "info",
                     "editType": "plot",
                     "description": "If set to an opposite-letter axis id (e.g. `x2`, `y`), this axis is bound to the corresponding opposite-letter axis. If set to *free*, this axis' position is determined by `position`."
+                },
+                "anchoroffset": {
+                    "valType": "boolean",
+                    "role": "info",
+                    "description": "If set to true and an anchor is present, the axis will be offset by any previous axes that share the same letter axis and side."
                 },
                 "side": {
                     "valType": "enumerated",
@@ -41238,6 +41343,11 @@
                     "editType": "legend",
                     "description": "Sets the legend's vertical position anchor This anchor binds the `y` position to the *top*, *middle* or *bottom* of the legend."
                 },
+                "maxHeight": {
+                    "valType": "number",
+                    "role": "style",
+                    "description": "Sets the maximum allowed height (in pixels) of the legend."
+                },
                 "editType": "legend",
                 "role": "object"
             },
@@ -42672,7 +42782,7 @@
                     "dflt": "=",
                     "role": "info",
                     "editType": "calc",
-                    "description": "Sets the filter operation. *=* keeps items equal to `value` *!=* keeps items not equal to `value` *<* keeps items less than `value` *<=* keeps items less than or equal to `value` *>* keeps items greater than `value` *>=* keeps items greater than or equal to `value` *[]* keeps items inside `value[0]` to value[1]` including both bounds` *()* keeps items inside `value[0]` to value[1]` excluding both bounds` *[)* keeps items inside `value[0]` to value[1]` including `value[0]` but excluding `value[1] *(]* keeps items inside `value[0]` to value[1]` excluding `value[0]` but including `value[1] *][* keeps items outside `value[0]` to value[1]` and equal to both bounds` *)(* keeps items outside `value[0]` to value[1]` *](* keeps items outside `value[0]` to value[1]` and equal to `value[0]` *)[* keeps items outside `value[0]` to value[1]` and equal to `value[1]` *{}* keeps items present in a set of values *}{* keeps items not present in a set of values"
+                    "description": "Sets the filter operation. *=* keeps items equal to `value` *!=* keeps items not equal to `value` *<* keeps items less than `value` *<=* keeps items less than or equal to `value` *>* keeps items greater than `value` *>=* keeps items greater than or equal to `value` *[]* keeps items inside `value[0]` to `value[1]` including both bounds *()* keeps items inside `value[0]` to `value[1]` excluding both bounds *[)* keeps items inside `value[0]` to `value[1]` including `value[0]` but excluding `value[1] *(]* keeps items inside `value[0]` to `value[1]` excluding `value[0]` but including `value[1] *][* keeps items outside `value[0]` to `value[1]` and equal to both bounds *)(* keeps items outside `value[0]` to `value[1]` *](* keeps items outside `value[0]` to `value[1]` and equal to `value[0]` *)[* keeps items outside `value[0]` to `value[1]` and equal to `value[1]` *{}* keeps items present in a set of values *}{* keeps items not present in a set of values"
                 },
                 "value": {
                     "valType": "any",

@@ -17819,11 +17819,9 @@ module.exports = function colorbarDefaults(containerIn, containerOut, layout) {
 
     handleTickValueDefaults(colorbarIn, colorbarOut, coerce, 'linear');
 
-    handleTickLabelDefaults(colorbarIn, colorbarOut, coerce, 'linear',
-        {outerTicks: false, font: layout.font, noHover: true});
-
-    handleTickMarkDefaults(colorbarIn, colorbarOut, coerce, 'linear',
-        {outerTicks: false, font: layout.font, noHover: true});
+    var opts = {outerTicks: false, font: layout.font};
+    handleTickLabelDefaults(colorbarIn, colorbarOut, coerce, 'linear', opts);
+    handleTickMarkDefaults(colorbarIn, colorbarOut, coerce, 'linear', opts);
 
     coerce('title', layout._dfltTitle.colorbar);
     Lib.coerceFont(coerce, 'titlefont', layout.font);
@@ -24650,6 +24648,11 @@ module.exports = {
         editType: 'legend',
         
     },
+    maxHeight: {
+        valType: 'number',
+        
+        
+    },
     editType: 'legend'
 };
 
@@ -24761,6 +24764,7 @@ module.exports = function legendDefaults(layoutIn, layoutOut, fullData) {
     coerce('xanchor', defaultXAnchor);
     coerce('y', defaultY);
     coerce('yanchor', defaultYAnchor);
+    coerce('maxHeight');
     Lib.noneOrAll(containerIn, containerOut, ['x', 'y']);
 };
 
@@ -24908,7 +24912,58 @@ module.exports = function draw(gd) {
 
     computeLegendDimensions(gd, groups, traces);
 
-    if(opts.height > lyMax) {
+    // If we have any anchored axes, we need to push the legend off of them
+    // (only activate if the legend positions are 0 or 1)
+    var anchorAxes = {
+        left: [],
+        right: [],
+        top: [],
+        bottom: []
+    }
+
+    Object.keys(fullLayout).map(function (key) {
+        var ax = fullLayout[key];
+        if (ax && ax.anchor && ax.anchoroffset && key.slice(1,5) === 'axis') {
+            anchorAxes[ax.side].push(ax)
+        }
+    });
+
+    opts._anchorShiftX = 0;
+    opts._anchorShiftY = 0;
+    if (opts.orientation === 'h') {
+        // Horizontal legend at the bottom of the plot
+        if (opts.y < 0.5) {
+            anchorAxes.bottom.map(function (ax) {
+                opts._anchorShiftY += ax._boundingBox.height
+            })
+        }
+        // Horizontal legend an the top of the plot
+        else {
+            anchorAxes.top.map(function (ax) {
+                opts._anchorShiftY -= ax._boundingBox.height
+            })
+        }
+    }
+    else {
+        if (opts.x < 0.5) {
+            anchorAxes.left.map(function (ax) {
+                opts._anchorShiftX += ax._boundingBox.width
+            })
+        }
+        else {
+            anchorAxes.right.map(function (ax) {
+                opts._anchorShiftX += ax._boundingBox.width
+            })
+        }
+    }
+
+    // The height that the legend will eventually be clipped too
+    var legendHeight = opts.height;
+    if(opts.maxHeight != null) {
+        legendHeight = Math.min(opts.height, opts.maxHeight)
+    }
+
+    if(legendHeight > lyMax) {
         // If the legend doesn't fit in the plot area,
         // do not expand the vertical margins.
         expandHorizontalMargin(gd);
@@ -24954,8 +25009,7 @@ module.exports = function draw(gd) {
     // Make sure the legend top and bottom are visible
     // (legends with a scroll bar are not allowed to stretch beyond the extended
     // margins)
-    var legendHeight = opts.height,
-        legendHeightMax = gs.h;
+    var legendHeightMax = gs.h;
 
     if(legendHeight > legendHeightMax) {
         ly = gs.t;
@@ -24964,12 +25018,12 @@ module.exports = function draw(gd) {
     else {
         if(ly + legendHeight > lyMax) ly = lyMax - legendHeight;
         if(ly < lyMin) ly = lyMin;
-        legendHeight = Math.min(lyMax - ly, opts.height);
+        legendHeight = Math.min(lyMax - ly, opts.height, opts.maxHeight);
     }
 
     // Set size and position of all the elements that make up a legend:
     // legend, background and border, scroll box and scroll bar
-    Drawing.setTranslate(legend, lx, ly);
+    Drawing.setTranslate(legend, lx + opts._anchorShiftX, ly + opts._anchorShiftY);
 
     var scrollBarYMax = legendHeight -
             constants.scrollBarHeight -
@@ -25407,7 +25461,7 @@ function computeLegendDimensions(gd, groups, traces) {
                 (borderwidth + offsetX),
                 (5 + borderwidth + legendItem.height / 2) + rowHeight);
 
-            opts.width += traceGap + traceWidth;
+            opts.width = Math.max(opts.width, borderwidth + offsetX + traceWidth);
             opts.height = Math.max(opts.height, legendItem.height);
 
             // keep track of tallest trace in group
@@ -25457,14 +25511,20 @@ function expandMargin(gd) {
         yanchor = 'middle';
     }
 
+    // check for vertical clipping
+    var clipHeight = opts.height;
+    if(opts.maxHeight != null) {
+        clipHeight = Math.min(opts.height, opts.maxHeight)
+    }
+
     // lastly check if the margin auto-expand has changed
     Plots.autoMargin(gd, 'legend', {
         x: opts.x,
         y: opts.y,
-        l: opts.width * ({right: 1, center: 0.5}[xanchor] || 0),
-        r: opts.width * ({left: 1, center: 0.5}[xanchor] || 0),
-        b: opts.height * ({top: 1, middle: 0.5}[yanchor] || 0),
-        t: opts.height * ({bottom: 1, middle: 0.5}[yanchor] || 0)
+        l: (opts.width + Math.abs(opts._anchorShiftX)) * ({right: 1, center: 0.5}[xanchor] || 0),
+        r: (opts.width + Math.abs(opts._anchorShiftX)) * ({left: 1, center: 0.5}[xanchor] || 0),
+        b: (clipHeight + Math.abs(opts._anchorShiftY)) * ({top: 1, middle: 0.5}[yanchor] || 0),
+        t: (clipHeight + Math.abs(opts._anchorShiftY)) * ({bottom: 1, middle: 0.5}[yanchor] || 0)
     });
 }
 
@@ -25833,11 +25893,14 @@ module.exports = function handleClick(g, gd, numClicks) {
 
 'use strict';
 
-var Registry = require('../../registry');
-
-
 exports.legendGetsTrace = function legendGetsTrace(trace) {
-    return trace.visible && Registry.traceIs(trace, 'showLegend');
+    // traceIs(trace, 'showLegend') is not sufficient anymore, due to contour(carpet)?
+    // which are legend-eligible only if type: constraint. Otherwise, showlegend gets deleted.
+
+    // Note that we explicitly include showlegend: false, so a trace that *could* be
+    // in the legend but is not shown still counts toward the two traces you need to
+    // ensure the legend is shown by default, because this can still help disambiguate.
+    return trace.visible && (trace.showlegend !== undefined);
 };
 
 exports.isGrouped = function isGrouped(legendLayout) {
@@ -25852,7 +25915,7 @@ exports.isReversed = function isReversed(legendLayout) {
     return (legendLayout.traceorder || '').indexOf('reversed') !== -1;
 };
 
-},{"../../registry":256}],103:[function(require,module,exports){
+},{}],103:[function(require,module,exports){
 /**
 * Copyright 2012-2018, Plotly, Inc.
 * All rights reserved.
@@ -25939,13 +26002,14 @@ module.exports = function style(s, gd) {
     .each(stylePoints);
 
     function styleLines(d) {
-        var trace = d[0].trace,
-            showFill = trace.visible && trace.fill && trace.fill !== 'none',
-            showLine = subTypes.hasLines(trace);
+        var trace = d[0].trace;
+        var showFill = trace.visible && trace.fill && trace.fill !== 'none';
+        var showLine = subTypes.hasLines(trace);
+        var contours = trace.contours;
 
-        if(trace && trace._module && trace._module.name === 'contourcarpet') {
-            showLine = trace.contours.showlines;
-            showFill = trace.contours.coloring === 'fill';
+        if(contours && contours.type === 'constraint') {
+            showLine = contours.showlines;
+            showFill = contours._operation !== '=';
         }
 
         var fill = d3.select(this).select('.legendfill').selectAll('path')
@@ -33595,18 +33659,6 @@ function formatTime(x, tr) {
     return timeStr;
 }
 
-// TODO: do these strings need to be localized?
-// ie this gives "Dec 13, 2017" but some languages may want eg "13-Dec 2017"
-var yearFormatD3 = '%Y';
-var monthFormatD3 = '%b %Y';
-var dayFormatD3 = '%b %-d';
-var yearMonthDayFormatD3 = '%b %-d, %Y';
-
-function yearFormatWorld(cDate) { return cDate.formatDate('yyyy'); }
-function monthFormatWorld(cDate) { return cDate.formatDate('M yyyy'); }
-function dayFormatWorld(cDate) { return cDate.formatDate('M d'); }
-function yearMonthDayFormatWorld(cDate) { return cDate.formatDate('M d, yyyy'); }
-
 /*
  * formatDate: turn a date into tick or hover label text.
  *
@@ -33624,49 +33676,21 @@ function yearMonthDayFormatWorld(cDate) { return cDate.formatDate('M d, yyyy'); 
  * the axis may choose to strip things after it when they don't change from
  * one tick to the next (as it does with automatic formatting)
  */
-exports.formatDate = function(x, fmt, tr, formatter, calendar) {
-    var headStr,
-        dateStr;
-
+exports.formatDate = function(x, fmt, tr, formatter, calendar, extraFormat) {
     calendar = isWorldCalendar(calendar) && calendar;
 
-    if(fmt) return modDateFormat(fmt, x, formatter, calendar);
-
-    if(calendar) {
-        try {
-            var dateJD = Math.floor((x + 0.05) / ONEDAY) + EPOCHJD,
-                cDate = Registry.getComponentMethod('calendars', 'getCal')(calendar)
-                    .fromJD(dateJD);
-
-            if(tr === 'y') dateStr = yearFormatWorld(cDate);
-            else if(tr === 'm') dateStr = monthFormatWorld(cDate);
-            else if(tr === 'd') {
-                headStr = yearFormatWorld(cDate);
-                dateStr = dayFormatWorld(cDate);
-            }
-            else {
-                headStr = yearMonthDayFormatWorld(cDate);
-                dateStr = formatTime(x, tr);
-            }
-        }
-        catch(e) { return 'Invalid'; }
-    }
-    else {
-        var d = new Date(Math.floor(x + 0.05));
-
-        if(tr === 'y') dateStr = formatter(yearFormatD3)(d);
-        else if(tr === 'm') dateStr = formatter(monthFormatD3)(d);
+    if(!fmt) {
+        if(tr === 'y') fmt = extraFormat.year;
+        else if(tr === 'm') fmt = extraFormat.month;
         else if(tr === 'd') {
-            headStr = formatter(yearFormatD3)(d);
-            dateStr = formatter(dayFormatD3)(d);
+            fmt = extraFormat.dayMonth + '\n' + extraFormat.year;
         }
         else {
-            headStr = formatter(yearMonthDayFormatD3)(d);
-            dateStr = formatTime(x, tr);
+            return formatTime(x, tr) + '\n' + modDateFormat(extraFormat.dayMonthYear, x, formatter, calendar);
         }
     }
 
-    return dateStr + (headStr ? '\n' + headStr : '');
+    return modDateFormat(fmt, x, formatter, calendar);
 };
 
 /*
@@ -38356,7 +38380,11 @@ module.exports = {
         decimal: '.',
         thousands: ',',
         grouping: [3],
-        currency: ['$', '']
+        currency: ['$', ''],
+        year: '%Y',
+        month: '%b %Y',
+        dayMonth: '%b %-d',
+        dayMonthYear: '%b %-d, %Y'
     }
 };
 
@@ -39360,6 +39388,8 @@ var enforceAxisConstraints = axisConstraints.enforce;
 var cleanAxisConstraints = axisConstraints.clean;
 var axisIds = require('../plots/cartesian/axis_ids');
 
+var numericNameWarningCount = 0;
+var numericNameWarningCountLimit = 5;
 
 /**
  * Main plot-creation function
@@ -41910,15 +41940,13 @@ Plotly.animate = function(gd, frameOrGroupNameOrFrameList, animationOpts) {
  *      - traces {array} trace indices
  *      - baseframe {string} name of frame from which this frame gets defaults
  *
- *  @param {array of integers) indices
+ *  @param {array of integers} indices
  *      an array of integer indices matching the respective frames in `frameList`. If not
  *      provided, an index will be provided in serial order. If already used, the frame
  *      will be overwritten.
  */
 Plotly.addFrames = function(gd, frameList, indices) {
     gd = Lib.getGraphDiv(gd);
-
-    var numericNameWarningCount = 0;
 
     if(frameList === null || frameList === undefined) {
         return Promise.resolve();
@@ -41934,7 +41962,7 @@ Plotly.addFrames = function(gd, frameList, indices) {
 
     var i, frame, j, idx;
     var _frames = gd._transitionData._frames;
-    var _hash = gd._transitionData._frameHash;
+    var _frameHash = gd._transitionData._frameHash;
 
 
     if(!Array.isArray(frameList)) {
@@ -41949,27 +41977,34 @@ Plotly.addFrames = function(gd, frameList, indices) {
     var bigIndex = _frames.length + frameList.length * 2;
 
     var insertions = [];
+    var _frameHashLocal = {};
     for(i = frameList.length - 1; i >= 0; i--) {
         if(!Lib.isPlainObject(frameList[i])) continue;
 
-        var name = (_hash[frameList[i].name] || {}).name;
+        // The entire logic for checking for this type of name collision can be removed once we migrate to ES6 and
+        // use a Map instead of an Object instance, as Map keys aren't converted to strings.
+        var lookupName = frameList[i].name;
+        var name = (_frameHash[lookupName] || _frameHashLocal[lookupName] || {}).name;
         var newName = frameList[i].name;
+        var collisionPresent = _frameHash[name] || _frameHashLocal[name];
 
-        if(name && newName && typeof newName === 'number' && _hash[name]) {
+        if(name && newName && typeof newName === 'number' && collisionPresent && numericNameWarningCount < numericNameWarningCountLimit) {
             numericNameWarningCount++;
 
-            Lib.warn('addFrames: overwriting frame "' + _hash[name].name +
+            Lib.warn('addFrames: overwriting frame "' + (_frameHash[name] || _frameHashLocal[name]).name +
                 '" with a frame whose name of type "number" also equates to "' +
                 name + '". This is valid but may potentially lead to unexpected ' +
                 'behavior since all plotly.js frame names are stored internally ' +
                 'as strings.');
 
-            if(numericNameWarningCount > 5) {
-                Lib.warn('addFrames: This API call has yielded too many warnings. ' +
+            if(numericNameWarningCount === numericNameWarningCountLimit) {
+                Lib.warn('addFrames: This API call has yielded too many of these warnings. ' +
                     'For the rest of this call, further warnings about numeric frame ' +
                     'names will be suppressed.');
             }
         }
+
+        _frameHashLocal[lookupName] = {name: lookupName};
 
         insertions.push({
             frame: Plots.supplyFrameDefaults(frameList[i]),
@@ -42000,10 +42035,10 @@ Plotly.addFrames = function(gd, frameList, indices) {
         if(!frame.name) {
             // Repeatedly assign a default name, incrementing the counter each time until
             // we get a name that's not in the hashed lookup table:
-            while(_hash[(frame.name = 'frame ' + gd._transitionData._counter++)]);
+            while(_frameHash[(frame.name = 'frame ' + gd._transitionData._counter++)]);
         }
 
-        if(_hash[frame.name]) {
+        if(_frameHash[frame.name]) {
             // If frame is present, overwrite its definition:
             for(j = 0; j < _frames.length; j++) {
                 if((_frames[j] || {}).name === frame.name) break;
@@ -44630,6 +44665,7 @@ var svgTextUtils = require('../../lib/svg_text_utils');
 var Titles = require('../../components/titles');
 var Color = require('../../components/color');
 var Drawing = require('../../components/drawing');
+var Plots = require('../../plots/plots');
 
 var constants = require('../../constants/numerical');
 var FP_SAFE = constants.FP_SAFE;
@@ -45904,7 +45940,7 @@ function formatDate(ax, out, hover, extraPrecision) {
         else tr = {y: 'm', m: 'd', d: 'M', M: 'S', S: 4}[tr];
     }
 
-    var dateStr = Lib.formatDate(out.x, fmt, tr, ax._dateFormat, ax.calendar),
+    var dateStr = Lib.formatDate(out.x, fmt, tr, ax._dateFormat, ax.calendar, ax._extraFormat),
         headStr;
 
     var splitIndex = dateStr.indexOf('\n');
@@ -46120,6 +46156,9 @@ function beyondSI(exponent) {
 }
 
 function numFormat(v, ax, fmtoverride, hover) {
+    if (ax.numberformatter) {
+        return ax.numberformatter(v, ax)
+    }
         // negative?
     var isNeg = v < 0,
         // max number of digits past decimal point to show
@@ -46746,6 +46785,19 @@ axes.doTicks = function(gd, axid, skipTitle) {
         }
 
         function calcBoundingBox() {
+            // This is a bit of a hack to get the title element
+            // var titleBox = fullLayout._infolayer.select('.g-' + ax._id + 'title').node().getBoundingClientRect();
+
+            // var axisBox = container.node().getBoundingClientRect();
+            // var comboBox = {
+            //     top: Math.min(titleBox.top, axisBox.top),
+            //     bottom: Math.max(titleBox.bottom, axisBox.bottom),
+            //     left: Math.min(titleBox.left, axisBox.left),
+            //     right: Math.max(titleBox.right, axisBox.right)
+            // };
+            // comboBox.width = comboBox.right - comboBox.left;
+            // comboBox.height = comboBox.bottom - comboBox.top;
+            // ax._boundingBox = comboBox;
             if(ax.showticklabels) {
                 var gdBB = gd.getBoundingClientRect();
                 var bBox = container.node().getBoundingClientRect();
@@ -46786,8 +46838,8 @@ axes.doTicks = function(gd, axid, skipTitle) {
                     };
                 } else {
                     pos = ax.anchor === 'free' ?
-                        gs.l + gs.w * ax.position :
-                        gs.l + gs.w * ax._anchorAxis.domain[{left: 0, right: 1}[ax.side]];
+                    gs.l + gs.w * ax.position :
+                    gs.l + gs.w * ax._anchorAxis.domain[{left: 0, right: 1}[ax.side]];
 
                     ax._boundingBox = {
                         left: pos,
@@ -46801,11 +46853,11 @@ axes.doTicks = function(gd, axid, skipTitle) {
             }
 
             /*
-             * for spikelines: what's the full domain of positions in the
-             * opposite direction that are associated with this axis?
-             * This means any axes that we make a subplot with, plus the
-             * position of the axis itself if it's free.
-             */
+                * for spikelines: what's the full domain of positions in the
+                * opposite direction that are associated with this axis?
+                * This means any axes that we make a subplot with, plus the
+                * position of the axis itself if it's free.
+                */
             if(subplots) {
                 var fullRange = ax._counterSpan = [Infinity, -Infinity];
 
@@ -46825,17 +46877,57 @@ axes.doTicks = function(gd, axid, skipTitle) {
                         [ax._boundingBox.right, ax._boundingBox.left]);
                 }
             }
-
             function extendRange(range, newRange) {
                 range[0] = Math.min(range[0], newRange[0]);
                 range[1] = Math.max(range[1], newRange[1]);
             }
         }
 
+        function expandMargins() {
+            var bBox = ax._boundingBox
+            var halfWidth = bBox.width * 0.5
+            var halfHeight = bBox.height * 0.5
+            var margins = {
+                x: 0.5,
+                y: 0.5,
+                l: halfWidth,
+                r: halfWidth,
+                b: halfHeight,
+                t: halfHeight
+            };
+            if (ax.anchor == 'x') {
+                if (ax.side == 'right') {
+                    margins.x = 1 + (ax._anchorOffset / fullLayout._size.w);
+                    margins.l = 0
+                    margins.r = bBox.width
+                }
+                else {
+                    margins.x = ax._anchorOffset / fullLayout._size.w
+                    margins.l = bBox.width;
+                    margins.r = 0;
+                }
+            }
+            else if (ax.anchor == 'y') {
+                if (ax.side == 'top') {
+                    margins.y = 1 + (ax._anchorOffset / fullLayout._size.h)
+                    margins.t = bBox.height
+                    margins.b = 0
+                }
+                else {
+                    margins.y = -(ax._anchorOffset / fullLayout._size.h)
+                    margins.t = 0
+                    margins.b = bBox.height
+                }
+            }
+
+            Plots.autoMargin(gd, 'axisLabels' + axid, margins);
+        }
+
         var done = Lib.syncOrAsync([
             allLabelsReady,
             fixLabelOverlaps,
-            calcBoundingBox
+            calcBoundingBox,
+            expandMargins
         ]);
         if(done && done.then) gd._promises.push(done);
         return done;
@@ -46855,7 +46947,7 @@ axes.doTicks = function(gd, axid, skipTitle) {
             },
             axLetter = axid.charAt(0),
             gs = gd._fullLayout._size,
-            offsetBase = 1.5,
+            offsetBase = 1,
             fontSize = ax.titlefont.size,
             transform,
             counterAxis,
@@ -46889,6 +46981,8 @@ axes.doTicks = function(gd, axid, skipTitle) {
                 y += (fullLayout.height - fullLayout.margin.b - fullLayout.margin.t) *
                     ax.rangeslider.thickness + ax._boundingBox.height;
             }
+            // Shift the title over to match the anchor offset
+            y += isNumeric(ax._anchorOffset) ? ax._anchorOffset : 0;
 
             if(!avoid.side) avoid.side = 'bottom';
         }
@@ -46906,6 +47000,9 @@ axes.doTicks = function(gd, axid, skipTitle) {
                 x = -titleStandoff - fontSize * (ax.showticklabels ? 0.5 : 0);
             }
             x += counterAxis._offset;
+
+            // Shift the title over to match the anchor offset
+            x += isNumeric(ax._anchorOffset) ? ax._anchorOffset : 0;
 
             transform = {rotate: '-90', offset: 0};
             if(!avoid.side) avoid.side = 'left';
@@ -47046,9 +47143,38 @@ axes.doTicks = function(gd, axid, skipTitle) {
             drawTicks(container, tickPathSide(0) + tickPathSide(1));
         });
 
+        // Now we calculate offsets for stacking groups of anchored axes
+        if (ax.anchoroffset) {
+
+            var offsetKey = axletter === 'y' ? 'width' : 'height';
+
+            // Get all of the axes that share an orientation, anchor, and side
+            var priors = axes.list(gd, axletter, true).filter(function (axis) {
+                return ax.anchoroffset && axis._id !== ax._id && axis.anchor === ax.anchor &&
+                    axis.side === ax.side && isNumeric(axis._anchorIndex);
+            }).sort(function (a,b) {return a._anchorIndex - b._anchorIndex;});
+
+            // If we have been placed at an index before, only check up to that index
+            var checkDepth = isNumeric(ax._anchorIndex) ? ax._anchorIndex : priors.length
+
+            // We check indexes to see if we need to offset by prior axes
+            var nextIndex = 0;
+            var nextOffset = 0;
+            for(var i = 0; i < checkDepth; i++) {
+                if(priors[i]._anchorIndex === i) {
+                    nextIndex = i + 1;
+                    nextOffset += priors[i]._boundingBox[offsetKey] + (ax.titlefont.size)
+                }
+            }
+            // Set the anchor index and offset for this axis, depending on the side
+            ax._anchorIndex = nextIndex;
+            var offsetDirection = (ax.side === 'right' || ax.side === 'bottom') ? 1 : -1;
+            ax._anchorOffset = nextOffset * offsetDirection;
+        }
+
         var mainContainer = mainPlotinfo[axLetter + 'axislayer'];
 
-        return drawLabels(mainContainer, ax._mainLinePosition);
+        return drawLabels(mainContainer, ax._mainLinePosition + ax._anchorOffset);
     }
 };
 
@@ -47196,7 +47322,7 @@ function swapAxisAttrs(layout, key, xFullAxes, yFullAxes, dfltTitle) {
     }
 }
 
-},{"../../components/color":44,"../../components/drawing":69,"../../components/titles":135,"../../constants/alignment":142,"../../constants/numerical":144,"../../lib":163,"../../lib/svg_text_utils":184,"../../registry":256,"./axis_autotype":208,"./axis_ids":210,"./set_convert":226,"d3":8,"fast-isnumeric":11}],208:[function(require,module,exports){
+},{"../../components/color":44,"../../components/drawing":69,"../../components/titles":135,"../../constants/alignment":142,"../../constants/numerical":144,"../../lib":163,"../../lib/svg_text_utils":184,"../../plots/plots":248,"../../registry":256,"./axis_autotype":208,"./axis_ids":210,"./set_convert":226,"d3":8,"fast-isnumeric":11}],208:[function(require,module,exports){
 /**
 * Copyright 2012-2018, Plotly, Inc.
 * All rights reserved.
@@ -47314,6 +47440,10 @@ module.exports = function handleAxisDefaults(containerIn, containerOut, coerce, 
 
     var axType = containerOut.type;
 
+    if(axType === 'linear' || axType === 'log') {
+        coerce('numberformatter')
+    }
+
     if(axType === 'date') {
         var handleCalendarDefaults = Registry.getComponentMethod('calendars', 'handleDefaults');
         handleCalendarDefaults(containerIn, containerOut, 'calendar', options.calendar);
@@ -47332,6 +47462,9 @@ module.exports = function handleAxisDefaults(containerIn, containerOut, coerce, 
     containerOut._initialCategories = axType === 'category' ?
         orderedCategories(letter, containerOut.categoryorder, containerOut.categoryarray, options.data) :
         [];
+
+
+    if(axType !== 'category' && !options.noHover) coerce('hoverformat');
 
     if(!visible) return containerOut;
 
@@ -50168,6 +50301,12 @@ module.exports = {
         editType: 'none',
         
     },
+    numberformatter: {
+        valType: 'any',
+        dflt: null,
+        
+        
+    },
     // lines and grids
     showline: {
         valType: 'boolean',
@@ -50244,6 +50383,13 @@ module.exports = {
         ],
         
         editType: 'plot',
+        
+    },
+    // anchoroffset: used to signal which axes should offset themselves from each other
+    // automatically
+    anchoroffset: {
+        valType: 'boolean',
+        
         
     },
     // side: not used directly, as values depend on direction
@@ -50733,7 +50879,12 @@ module.exports = function handlePositionDefaults(containerIn, containerOut, coer
         }
     }, 'anchor');
 
-    if(anchor === 'free') coerce('position');
+    if(anchor === 'free') {
+        coerce('position');
+    }
+    else {
+        coerce('anchoroffset');
+    }
 
     Lib.coerce(containerIn, containerOut, {
         side: {
@@ -51649,6 +51800,7 @@ module.exports = function setConvert(ax, fullLayout) {
     var locale = fullLayout._d3locale;
     if(ax.type === 'date') {
         ax._dateFormat = locale ? locale.timeFormat.utc : d3.time.format.utc;
+        ax._extraFormat = fullLayout._extraFormat;
     }
     // occasionally we need _numFormat to pass through
     // even though it won't be needed by this axis
@@ -51675,9 +51827,6 @@ module.exports = function setConvert(ax, fullLayout) {
 var Lib = require('../../lib');
 var layoutAttributes = require('./layout_attributes');
 
-/**
- * options: inherits font, outerTicks, noHover from axes.handleAxisDefaults
- */
 module.exports = function handleTickLabelDefaults(containerIn, containerOut, coerce, axType, options) {
     var showAttrDflt = getShowAttrDflt(containerIn);
 
@@ -51711,8 +51860,6 @@ module.exports = function handleTickLabelDefaults(containerIn, containerOut, coe
             }
         }
     }
-
-    if(axType !== 'category' && !options.noHover) coerce('hoverformat');
 };
 
 /*
@@ -55854,6 +56001,16 @@ plots.sendDataToCloud = function(gd) {
     return false;
 };
 
+var d3FormatKeys = [
+    'days', 'shortDays', 'months', 'shortMonths', 'periods',
+    'dateTime', 'date', 'time',
+    'decimal', 'thousands', 'grouping', 'currency'
+];
+
+var extraFormatKeys = [
+    'year', 'month', 'dayMonth', 'dayMonthYear'
+];
+
 // Fill in default values:
 //
 // gd.data, gd.layout:
@@ -55908,7 +56065,7 @@ plots.supplyDefaults = function(gd) {
     };
     newFullLayout._traceWord = _(gd, 'trace');
 
-    var formatObj = getD3FormatObj(gd);
+    var formatObj = getFormatObj(gd, d3FormatKeys);
 
     // first fill in what we can of layout without looking at data
     // because fullData needs a few things from layout
@@ -55945,6 +56102,7 @@ plots.supplyDefaults = function(gd) {
     }
 
     newFullLayout._d3locale = getFormatter(formatObj, newFullLayout.separators);
+    newFullLayout._extraFormat = getFormatObj(gd, extraFormatKeys);
 
     newFullLayout._initialAutoSizeIsDone = true;
 
@@ -56084,21 +56242,18 @@ function remapTransformedArrays(cd0, newTrace) {
     }
 }
 
-var formatKeys = [
-    'days', 'shortDays', 'months', 'shortMonths', 'periods',
-    'dateTime', 'date', 'time',
-    'decimal', 'thousands', 'grouping', 'currency'
-];
-
 /**
- * getD3FormatObj: use _context to get the d3.locale argument object.
+ * getFormatObj: use _context to get the format object from locale.
+ * Used to get d3.locale argument object and extraFormat argument object
+ *
+ * Regarding d3.locale argument :
  * decimal and thousands can be overridden later by layout.separators
  * grouping and currency are not presently used by our automatic number
  * formatting system but can be used by custom formats.
  *
  * @returns {object} d3.locale format object
  */
-function getD3FormatObj(gd) {
+function getFormatObj(gd, formatKeys) {
     var locale = gd._context.locale;
     if(!locale) locale === 'en-US';
 
@@ -57375,7 +57530,7 @@ plots.graphJson = function(gd, dataonly, mode, output, useDefaults) {
 plots.modifyFrames = function(gd, operations) {
     var i, op, frame;
     var _frames = gd._transitionData._frames;
-    var _hash = gd._transitionData._frameHash;
+    var _frameHash = gd._transitionData._frameHash;
 
     for(i = 0; i < operations.length; i++) {
         op = operations[i];
@@ -57384,32 +57539,32 @@ plots.modifyFrames = function(gd, operations) {
             // No reason this couldn't exist, but is currently unused/untested:
             /* case 'rename':
                 frame = _frames[op.index];
-                delete _hash[frame.name];
-                _hash[op.name] = frame;
+                delete _frameHash[frame.name];
+                _frameHash[op.name] = frame;
                 frame.name = op.name;
                 break;*/
             case 'replace':
                 frame = op.value;
                 var oldName = (_frames[op.index] || {}).name;
                 var newName = frame.name;
-                _frames[op.index] = _hash[newName] = frame;
+                _frames[op.index] = _frameHash[newName] = frame;
 
                 if(newName !== oldName) {
                     // If name has changed in addition to replacement, then update
                     // the lookup table:
-                    delete _hash[oldName];
-                    _hash[newName] = frame;
+                    delete _frameHash[oldName];
+                    _frameHash[newName] = frame;
                 }
 
                 break;
             case 'insert':
                 frame = op.value;
-                _hash[frame.name] = frame;
+                _frameHash[frame.name] = frame;
                 _frames.splice(op.index, 0, frame);
                 break;
             case 'delete':
                 frame = _frames[op.index];
-                delete _hash[frame.name];
+                delete _frameHash[frame.name];
                 _frames.splice(op.index, 1);
                 break;
         }
@@ -57595,7 +57750,7 @@ plots.extendObjectWithContainers = function(dest, src, containerPaths) {
     return dest;
 };
 
-plots.dataArrayContainers = ['transforms'];
+plots.dataArrayContainers = ['transforms', 'dimensions'];
 plots.layoutArrayContainers = Registry.layoutArrayContainers;
 
 /*
@@ -57848,14 +58003,6 @@ plots.transition = function(gd, data, layout, traces, frameOpts, transitionOpts)
         var module = contFull._module;
 
         if(!module) continue;
-
-        if(!module.animatable) {
-            var thisUpdate = {};
-
-            for(var ai in data[i]) {
-                thisUpdate[ai] = [data[i][ai]];
-            }
-        }
     }
 
     var seq = [plots.previousPromises, interruptPreviousTransitions, prepareTransitions, plots.rehover, executeTransitions];
