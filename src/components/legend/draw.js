@@ -163,25 +163,33 @@ module.exports = function draw(gd) {
         // Horizontal legend at the bottom of the plot
         if (opts.y < 0.5) {
             anchorAxes.bottom.map(function (ax) {
-                opts._anchorShiftY += ax._boundingBox.height
+                if (ax._anchorOffset != null && ax._boundingBox) {
+                    opts._anchorShiftY = Math.max(opts._anchorShiftY, ax._anchorOffset + ax._boundingBox.height)
+                }
             })
         }
         // Horizontal legend an the top of the plot
         else {
             anchorAxes.top.map(function (ax) {
-                opts._anchorShiftY -= ax._boundingBox.height
+                if (ax._anchorOffset != null && ax._boundingBox) {
+                    opts._anchorShiftY = Math.min(opts._anchorShiftY, ax._anchorOffset - ax._boundingBox.height)
+                }
             })
         }
     }
     else {
         if (opts.x < 0.5) {
             anchorAxes.left.map(function (ax) {
-                opts._anchorShiftX += ax._boundingBox.width
+                if (ax._anchorOffset != null && ax._boundingBox) {
+                    opts._anchorShiftY = Math.max(opts._anchorShiftY, ax._anchorOffset + ax._boundingBox.width)
+                }
             })
         }
         else {
             anchorAxes.right.map(function (ax) {
-                opts._anchorShiftX += ax._boundingBox.width
+                if (ax._anchorOffset != null && ax._boundingBox) {
+                    opts._anchorShiftY = Math.min(opts._anchorShiftY, ax._anchorOffset - ax._boundingBox.width)
+                }
             })
         }
     }

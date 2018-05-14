@@ -55,7 +55,8 @@
         500000,
         600000
       ],
-      "name": "yaxis4 data has a rather long title to take up space, and it can go on for quite some time",
+      "name": "yaxis4 data has a rather long title to take up space, and it can ",
+      "xaxis": "x2",
       "yaxis": "y4",
       "type": "scatter"
     },
@@ -360,7 +361,9 @@
       "anchor": "x",
       "anchoroffset": true,
       "side": "right",
-      "overlaying": "y"
+      "overlaying": "y",
+      "autorange": "true",
+      "autorangemax": 555555
     },
     "yaxis5": {
       "title": "yaxis5 title",

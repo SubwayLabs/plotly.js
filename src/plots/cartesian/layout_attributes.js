@@ -553,6 +553,24 @@ module.exports = {
             'linear and log plots'
         ].join(' ')
     },
+    autorangemin: {
+        valType: 'number',
+        dflt: null,
+        role: 'style',
+        description: [
+            'Fix a minimum to use on one sided autoranges',
+            'for cartesian plots'
+        ].join(' ')
+    },
+    autorangemax: {
+        valType: 'number',
+        dflt: null,
+        role: 'style',
+        description: [
+            'Fix a maximum to use on one sided autoranges',
+            'for cartesian plots'
+        ].join(' ')
+    },
     // lines and grids
     showline: {
         valType: 'boolean',
