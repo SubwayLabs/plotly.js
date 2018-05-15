@@ -55,6 +55,9 @@ module.exports = function handleAxisDefaults(containerIn, containerOut, coerce, 
 
     if(autoRange) coerce('rangemode');
 
+    if(autoRange) coerce('autorangemin');
+    if(autoRange) coerce('autorangemax');
+
     coerce('range');
     containerOut.cleanRange();
 

@@ -356,7 +356,12 @@ axes.doAutoRange = function(ax) {
 
     if(ax.autorange && hasDeps) {
         ax.range = axes.getAutoRange(ax);
-
+        if (ax.autorangemin != null) {
+            ax.range[0] = ax.autorangemin;
+        }
+        if (ax.autorangemax != null) {
+            ax.range[1] = ax.autorangemax;
+        }
         ax._r = ax.range.slice();
         ax._rl = Lib.simpleMap(ax._r, ax.r2l);
 
@@ -2138,22 +2143,21 @@ axes.doTicks = function(gd, axid, skipTitle) {
         }
 
         function calcBoundingBox() {
-            // This is a bit of a hack to get the title element
-            // var titleBox = fullLayout._infolayer.select('.g-' + ax._id + 'title').node().getBoundingClientRect();
-
-            // var axisBox = container.node().getBoundingClientRect();
-            // var comboBox = {
-            //     top: Math.min(titleBox.top, axisBox.top),
-            //     bottom: Math.max(titleBox.bottom, axisBox.bottom),
-            //     left: Math.min(titleBox.left, axisBox.left),
-            //     right: Math.max(titleBox.right, axisBox.right)
-            // };
-            // comboBox.width = comboBox.right - comboBox.left;
-            // comboBox.height = comboBox.bottom - comboBox.top;
-            // ax._boundingBox = comboBox;
             if(ax.showticklabels) {
                 var gdBB = gd.getBoundingClientRect();
-                var bBox = container.node().getBoundingClientRect();
+                // This is a bit of a hack to get the title element
+                var titleBox = fullLayout._infolayer.select('.g-' + ax._id + 'title').node().getBoundingClientRect();
+
+                var axisBox = container.node().getBoundingClientRect();
+                var comboBox = {
+                    top: Math.min(titleBox.top, axisBox.top),
+                    bottom: Math.max(titleBox.bottom, axisBox.bottom),
+                    left: Math.min(titleBox.left, axisBox.left),
+                    right: Math.max(titleBox.right, axisBox.right)
+                };
+                comboBox.width = comboBox.right - comboBox.left;
+                comboBox.height = comboBox.bottom - comboBox.top;
+                var bBox = comboBox;
 
                 /*
                  * the way we're going to use this, the positioning that matters
@@ -2499,10 +2503,10 @@ axes.doTicks = function(gd, axid, skipTitle) {
         // Now we calculate offsets for stacking groups of anchored axes
         if (ax.anchoroffset) {
 
-            var offsetKey = axletter === 'y' ? 'width' : 'height';
+            var offsetKey = axLetter === 'y' ? 'width' : 'height';
 
             // Get all of the axes that share an orientation, anchor, and side
-            var priors = axes.list(gd, axletter, true).filter(function (axis) {
+            var priors = axes.list(gd, axLetter, true).filter(function (axis) {
                 return ax.anchoroffset && axis._id !== ax._id && axis.anchor === ax.anchor &&
                     axis.side === ax.side && isNumeric(axis._anchorIndex);
             }).sort(function (a,b) {return a._anchorIndex - b._anchorIndex;});
