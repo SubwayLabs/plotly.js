@@ -58,30 +58,31 @@ describe('sankey tests', function() {
         });
     });
 
-    describe('log warning if issue is encountered with graph structure',
-        function() {
+    describe('No warnings for missing nodes', function() {
+        // we used to warn when some nodes were not used in the links
+        // not doing that anymore, it's not really consistent with
+        // the rest of our data processing.
+        it('some nodes are not linked', function() {
 
-            it('some nodes are not linked', function() {
-
-                var warnings = [];
-                spyOn(Lib, 'warn').and.callFake(function(msg) {
-                    warnings.push(msg);
-                });
-
-                _supply({
-                    node: {
-                        label: ['a', 'b', 'c']
-                    },
-                    link: {
-                        value: [1],
-                        source: [0],
-                        target: [1]
-                    }
-                });
-
-                expect(warnings.length).toEqual(1);
+            var warnings = [];
+            spyOn(Lib, 'warn').and.callFake(function(msg) {
+                warnings.push(msg);
             });
+
+            _supply({
+                node: {
+                    label: ['a', 'b', 'c']
+                },
+                link: {
+                    value: [1],
+                    source: [0],
+                    target: [1]
+                }
+            });
+
+            expect(warnings.length).toEqual(0);
         });
+    });
 
     describe('sankey global defaults', function() {
 
@@ -179,7 +180,7 @@ describe('sankey tests', function() {
                 }
             });
 
-            expect(Lib.isArray(fullTrace.node.color)).toBe(true, 'set up color array');
+            expect(Array.isArray(fullTrace.node.color)).toBe(true, 'set up color array');
             expect(fullTrace.node.color).toEqual(['rgba(31, 119, 180, 0.8)', 'rgba(255, 127, 14, 0.8)']);
 
         });
@@ -197,7 +198,7 @@ describe('sankey tests', function() {
                 }
             }, {colorway: ['rgb(255, 0, 0)', 'rgb(0, 0, 255)']});
 
-            expect(Lib.isArray(fullTrace.node.color)).toBe(true, 'set up color array');
+            expect(Array.isArray(fullTrace.node.color)).toBe(true, 'set up color array');
             expect(fullTrace.node.color).toEqual(['rgba(255, 0, 0, 0.8)', 'rgba(0, 0, 255, 0.8)']);
 
         });
@@ -215,7 +216,7 @@ describe('sankey tests', function() {
                 }
             });
 
-            expect(Lib.isArray(fullTrace.link.label)).toBe(true, 'must be an array');
+            expect(Array.isArray(fullTrace.link.label)).toBe(true, 'must be an array');
             expect(fullTrace.link.label).toEqual([], 'an array of empty strings');
         });
 
@@ -233,7 +234,7 @@ describe('sankey tests', function() {
                 }
             });
 
-            expect(Lib.isArray(fullTrace.link.label)).toBe(true, 'must be an array');
+            expect(Array.isArray(fullTrace.link.label)).toBe(true, 'must be an array');
             expect(fullTrace.link.label).toEqual(['a', 'b'], 'an array of the supplied values');
         });
     });

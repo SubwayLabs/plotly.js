@@ -14,6 +14,7 @@ var d3 = require('d3');
 var Plots = require('../../plots/plots');
 var Color = require('../color');
 var Drawing = require('../drawing');
+var Lib = require('../../lib');
 var svgTextUtils = require('../../lib/svg_text_utils');
 var anchorUtils = require('../legend/anchor_utils');
 
@@ -78,12 +79,9 @@ module.exports = function draw(gd) {
         .classed(constants.headerGroupClassName, true);
 
     // draw dropdown button container
-    var gButton = menus.selectAll('g.' + constants.dropdownButtonGroupClassName)
-        .data([0]);
-
-    gButton.enter().append('g')
-        .classed(constants.dropdownButtonGroupClassName, true)
-        .style('pointer-events', 'all');
+    var gButton = Lib.ensureSingle(menus, 'g', constants.dropdownButtonGroupClassName, function(s) {
+        s.style('pointer-events', 'all');
+    });
 
     // find dimensions before plotting anything (this mutates menuOpts)
     for(var i = 0; i < menuData.length; i++) {
@@ -190,39 +188,34 @@ function setActive(gd, menuOpts, buttonOpts, gHeader, gButton, scrollBox, button
 }
 
 function drawHeader(gd, gHeader, gButton, scrollBox, menuOpts) {
-    var header = gHeader.selectAll('g.' + constants.headerClassName)
-        .data([0]);
+    var header = Lib.ensureSingle(gHeader, 'g', constants.headerClassName, function(s) {
+        s.style('pointer-events', 'all');
+    });
 
-    header.enter().append('g')
-        .classed(constants.headerClassName, true)
-        .style('pointer-events', 'all');
-
-    var active = menuOpts.active,
-        headerOpts = menuOpts.buttons[active] || constants.blankHeaderOpts,
-        posOpts = { y: menuOpts.pad.t, yPad: 0, x: menuOpts.pad.l, xPad: 0, index: 0 },
-        positionOverrides = {
-            width: menuOpts.headerWidth,
-            height: menuOpts.headerHeight
-        };
+    var dims = menuOpts._dims;
+    var active = menuOpts.active;
+    var headerOpts = menuOpts.buttons[active] || constants.blankHeaderOpts;
+    var posOpts = { y: menuOpts.pad.t, yPad: 0, x: menuOpts.pad.l, xPad: 0, index: 0 };
+    var positionOverrides = {
+        width: dims.headerWidth,
+        height: dims.headerHeight
+    };
 
     header
         .call(drawItem, menuOpts, headerOpts, gd)
         .call(setItemPosition, menuOpts, posOpts, positionOverrides);
 
     // draw drop arrow at the right edge
-    var arrow = gHeader.selectAll('text.' + constants.headerArrowClassName)
-        .data([0]);
-
-    arrow.enter().append('text')
-        .classed(constants.headerArrowClassName, true)
-        .classed('user-select-none', true)
-        .attr('text-anchor', 'end')
-        .call(Drawing.font, menuOpts.font)
-        .text(constants.arrowSymbol[menuOpts.direction]);
+    var arrow = Lib.ensureSingle(gHeader, 'text', constants.headerArrowClassName, function(s) {
+        s.classed('user-select-none', true)
+            .attr('text-anchor', 'end')
+            .call(Drawing.font, menuOpts.font)
+            .text(constants.arrowSymbol[menuOpts.direction]);
+    });
 
     arrow.attr({
-        x: menuOpts.headerWidth - constants.arrowOffsetX + menuOpts.pad.l,
-        y: menuOpts.headerHeight / 2 + constants.textOffsetY + menuOpts.pad.t
+        x: dims.headerWidth - constants.arrowOffsetX + menuOpts.pad.l,
+        y: dims.headerHeight / 2 + constants.textOffsetY + menuOpts.pad.t
     });
 
     header.on('click', function() {
@@ -250,7 +243,7 @@ function drawHeader(gd, gHeader, gButton, scrollBox, menuOpts) {
     });
 
     // translate header group
-    Drawing.setTranslate(gHeader, menuOpts.lx, menuOpts.ly);
+    Drawing.setTranslate(gHeader, dims.lx, dims.ly);
 }
 
 function drawButtons(gd, gHeader, gButton, scrollBox, menuOpts) {
@@ -290,28 +283,29 @@ function drawButtons(gd, gHeader, gButton, scrollBox, menuOpts) {
 
     var x0 = 0;
     var y0 = 0;
+    var dims = menuOpts._dims;
 
     var isVertical = ['up', 'down'].indexOf(menuOpts.direction) !== -1;
 
     if(menuOpts.type === 'dropdown') {
         if(isVertical) {
-            y0 = menuOpts.headerHeight + constants.gapButtonHeader;
+            y0 = dims.headerHeight + constants.gapButtonHeader;
         } else {
-            x0 = menuOpts.headerWidth + constants.gapButtonHeader;
+            x0 = dims.headerWidth + constants.gapButtonHeader;
         }
     }
 
     if(menuOpts.type === 'dropdown' && menuOpts.direction === 'up') {
-        y0 = -constants.gapButtonHeader + constants.gapButton - menuOpts.openHeight;
+        y0 = -constants.gapButtonHeader + constants.gapButton - dims.openHeight;
     }
 
     if(menuOpts.type === 'dropdown' && menuOpts.direction === 'left') {
-        x0 = -constants.gapButtonHeader + constants.gapButton - menuOpts.openWidth;
+        x0 = -constants.gapButtonHeader + constants.gapButton - dims.openWidth;
     }
 
     var posOpts = {
-        x: menuOpts.lx + x0 + menuOpts.pad.l,
-        y: menuOpts.ly + y0 + menuOpts.pad.t,
+        x: dims.lx + x0 + menuOpts.pad.l,
+        y: dims.ly + y0 + menuOpts.pad.t,
         yPad: constants.gapButton,
         xPad: constants.gapButton,
         index: 0,
@@ -355,12 +349,12 @@ function drawButtons(gd, gHeader, gButton, scrollBox, menuOpts) {
     buttons.call(styleButtons, menuOpts);
 
     if(isVertical) {
-        scrollBoxPosition.w = Math.max(menuOpts.openWidth, menuOpts.headerWidth);
+        scrollBoxPosition.w = Math.max(dims.openWidth, dims.headerWidth);
         scrollBoxPosition.h = posOpts.y - scrollBoxPosition.t;
     }
     else {
         scrollBoxPosition.w = posOpts.x - scrollBoxPosition.l;
-        scrollBoxPosition.h = Math.max(menuOpts.openHeight, menuOpts.headerHeight);
+        scrollBoxPosition.h = Math.max(dims.openHeight, dims.headerHeight);
     }
 
     scrollBoxPosition.direction = menuOpts.direction;
@@ -377,8 +371,9 @@ function drawButtons(gd, gHeader, gButton, scrollBox, menuOpts) {
 
 function drawScrollBox(gd, gHeader, gButton, scrollBox, menuOpts, position) {
     // enable the scrollbox
-    var direction = menuOpts.direction,
-        isVertical = (direction === 'up' || direction === 'down');
+    var direction = menuOpts.direction;
+    var isVertical = (direction === 'up' || direction === 'down');
+    var dims = menuOpts._dims;
 
     var active = menuOpts.active,
         translateX, translateY,
@@ -386,13 +381,13 @@ function drawScrollBox(gd, gHeader, gButton, scrollBox, menuOpts, position) {
     if(isVertical) {
         translateY = 0;
         for(i = 0; i < active; i++) {
-            translateY += menuOpts.heights[i] + constants.gapButton;
+            translateY += dims.heights[i] + constants.gapButton;
         }
     }
     else {
         translateX = 0;
         for(i = 0; i < active; i++) {
-            translateX += menuOpts.widths[i] + constants.gapButton;
+            translateX += dims.widths[i] + constants.gapButton;
         }
     }
 
@@ -444,16 +439,13 @@ function drawItem(item, menuOpts, itemOpts, gd) {
 }
 
 function drawItemRect(item, menuOpts) {
-    var rect = item.selectAll('rect')
-        .data([0]);
-
-    rect.enter().append('rect')
-        .classed(constants.itemRectClassName, true)
-        .attr({
+    var rect = Lib.ensureSingle(item, 'rect', constants.itemRectClassName, function(s) {
+        s.attr({
             rx: constants.rx,
             ry: constants.ry,
             'shape-rendering': 'crispEdges'
         });
+    });
 
     rect.call(Color.stroke, menuOpts.bordercolor)
         .call(Color.fill, menuOpts.bgcolor)
@@ -461,16 +453,13 @@ function drawItemRect(item, menuOpts) {
 }
 
 function drawItemText(item, menuOpts, itemOpts, gd) {
-    var text = item.selectAll('text')
-        .data([0]);
-
-    text.enter().append('text')
-        .classed(constants.itemTextClassName, true)
-        .classed('user-select-none', true)
-        .attr({
-            'text-anchor': 'start',
-            'data-notex': 1
-        });
+    var text = Lib.ensureSingle(item, 'text', constants.itemTextClassName, function(s) {
+        s.classed('user-select-none', true)
+            .attr({
+                'text-anchor': 'start',
+                'data-notex': 1
+            });
+    });
 
     text.call(Drawing.font, menuOpts.font)
         .text(itemOpts.label)
@@ -502,16 +491,18 @@ function styleOnMouseOut(item, menuOpts) {
 
 // find item dimensions (this mutates menuOpts)
 function findDimensions(gd, menuOpts) {
-    menuOpts.width1 = 0;
-    menuOpts.height1 = 0;
-    menuOpts.heights = [];
-    menuOpts.widths = [];
-    menuOpts.totalWidth = 0;
-    menuOpts.totalHeight = 0;
-    menuOpts.openWidth = 0;
-    menuOpts.openHeight = 0;
-    menuOpts.lx = 0;
-    menuOpts.ly = 0;
+    var dims = menuOpts._dims = {
+        width1: 0,
+        height1: 0,
+        heights: [],
+        widths: [],
+        totalWidth: 0,
+        totalHeight: 0,
+        openWidth: 0,
+        openHeight: 0,
+        lx: 0,
+        ly: 0
+    };
 
     var fakeButtons = Drawing.tester.selectAll('g.' + constants.dropdownButtonClassName)
         .data(menuOpts.buttons);
@@ -543,79 +534,79 @@ function findDimensions(gd, menuOpts) {
 
         // Store per-item sizes since a row of horizontal buttons, for example,
         // don't all need to be the same width:
-        menuOpts.widths[i] = wEff;
-        menuOpts.heights[i] = hEff;
+        dims.widths[i] = wEff;
+        dims.heights[i] = hEff;
 
         // Height and width of individual element:
-        menuOpts.height1 = Math.max(menuOpts.height1, hEff);
-        menuOpts.width1 = Math.max(menuOpts.width1, wEff);
+        dims.height1 = Math.max(dims.height1, hEff);
+        dims.width1 = Math.max(dims.width1, wEff);
 
         if(isVertical) {
-            menuOpts.totalWidth = Math.max(menuOpts.totalWidth, wEff);
-            menuOpts.openWidth = menuOpts.totalWidth;
-            menuOpts.totalHeight += hEff + constants.gapButton;
-            menuOpts.openHeight += hEff + constants.gapButton;
+            dims.totalWidth = Math.max(dims.totalWidth, wEff);
+            dims.openWidth = dims.totalWidth;
+            dims.totalHeight += hEff + constants.gapButton;
+            dims.openHeight += hEff + constants.gapButton;
         } else {
-            menuOpts.totalWidth += wEff + constants.gapButton;
-            menuOpts.openWidth += wEff + constants.gapButton;
-            menuOpts.totalHeight = Math.max(menuOpts.totalHeight, hEff);
-            menuOpts.openHeight = menuOpts.totalHeight;
+            dims.totalWidth += wEff + constants.gapButton;
+            dims.openWidth += wEff + constants.gapButton;
+            dims.totalHeight = Math.max(dims.totalHeight, hEff);
+            dims.openHeight = dims.totalHeight;
         }
     });
 
     if(isVertical) {
-        menuOpts.totalHeight -= constants.gapButton;
+        dims.totalHeight -= constants.gapButton;
     } else {
-        menuOpts.totalWidth -= constants.gapButton;
+        dims.totalWidth -= constants.gapButton;
     }
 
 
-    menuOpts.headerWidth = menuOpts.width1 + constants.arrowPadX;
-    menuOpts.headerHeight = menuOpts.height1;
+    dims.headerWidth = dims.width1 + constants.arrowPadX;
+    dims.headerHeight = dims.height1;
 
     if(menuOpts.type === 'dropdown') {
         if(isVertical) {
-            menuOpts.width1 += constants.arrowPadX;
-            menuOpts.totalHeight = menuOpts.height1;
+            dims.width1 += constants.arrowPadX;
+            dims.totalHeight = dims.height1;
         } else {
-            menuOpts.totalWidth = menuOpts.width1;
+            dims.totalWidth = dims.width1;
         }
-        menuOpts.totalWidth += constants.arrowPadX;
+        dims.totalWidth += constants.arrowPadX;
     }
 
     fakeButtons.remove();
 
-    var paddedWidth = menuOpts.totalWidth + menuOpts.pad.l + menuOpts.pad.r;
-    var paddedHeight = menuOpts.totalHeight + menuOpts.pad.t + menuOpts.pad.b;
+    var paddedWidth = dims.totalWidth + menuOpts.pad.l + menuOpts.pad.r;
+    var paddedHeight = dims.totalHeight + menuOpts.pad.t + menuOpts.pad.b;
 
     var graphSize = gd._fullLayout._size;
-    menuOpts.lx = graphSize.l + graphSize.w * menuOpts.x;
-    menuOpts.ly = graphSize.t + graphSize.h * (1 - menuOpts.y);
+    dims.lx = graphSize.l + graphSize.w * menuOpts.x;
+    dims.ly = graphSize.t + graphSize.h * (1 - menuOpts.y);
 
     var xanchor = 'left';
     if(anchorUtils.isRightAnchor(menuOpts)) {
-        menuOpts.lx -= paddedWidth;
+        dims.lx -= paddedWidth;
         xanchor = 'right';
     }
     if(anchorUtils.isCenterAnchor(menuOpts)) {
-        menuOpts.lx -= paddedWidth / 2;
+        dims.lx -= paddedWidth / 2;
         xanchor = 'center';
     }
 
     var yanchor = 'top';
     if(anchorUtils.isBottomAnchor(menuOpts)) {
-        menuOpts.ly -= paddedHeight;
+        dims.ly -= paddedHeight;
         yanchor = 'bottom';
     }
     if(anchorUtils.isMiddleAnchor(menuOpts)) {
-        menuOpts.ly -= paddedHeight / 2;
+        dims.ly -= paddedHeight / 2;
         yanchor = 'middle';
     }
 
-    menuOpts.totalWidth = Math.ceil(menuOpts.totalWidth);
-    menuOpts.totalHeight = Math.ceil(menuOpts.totalHeight);
-    menuOpts.lx = Math.round(menuOpts.lx);
-    menuOpts.ly = Math.round(menuOpts.ly);
+    dims.totalWidth = Math.ceil(dims.totalWidth);
+    dims.totalHeight = Math.ceil(dims.totalHeight);
+    dims.lx = Math.round(dims.lx);
+    dims.ly = Math.round(dims.ly);
 
     Plots.autoMargin(gd, constants.autoMarginIdRoot + menuOpts._index, {
         x: menuOpts.x,
@@ -634,16 +625,17 @@ function setItemPosition(item, menuOpts, posOpts, overrideOpts) {
     var text = item.select('.' + constants.itemTextClassName);
     var borderWidth = menuOpts.borderwidth;
     var index = posOpts.index;
+    var dims = menuOpts._dims;
 
     Drawing.setTranslate(item, borderWidth + posOpts.x, borderWidth + posOpts.y);
 
     var isVertical = ['up', 'down'].indexOf(menuOpts.direction) !== -1;
-    var finalHeight = overrideOpts.height || (isVertical ? menuOpts.heights[index] : menuOpts.height1);
+    var finalHeight = overrideOpts.height || (isVertical ? dims.heights[index] : dims.height1);
 
     rect.attr({
         x: 0,
         y: 0,
-        width: overrideOpts.width || (isVertical ? menuOpts.width1 : menuOpts.widths[index]),
+        width: overrideOpts.width || (isVertical ? dims.width1 : dims.widths[index]),
         height: finalHeight
     });
 
@@ -655,9 +647,9 @@ function setItemPosition(item, menuOpts, posOpts, overrideOpts) {
         finalHeight / 2 - spanOffset + constants.textOffsetY);
 
     if(isVertical) {
-        posOpts.y += menuOpts.heights[index] + posOpts.yPad;
+        posOpts.y += dims.heights[index] + posOpts.yPad;
     } else {
-        posOpts.x += menuOpts.widths[index] + posOpts.xPad;
+        posOpts.x += dims.widths[index] + posOpts.xPad;
     }
 
     posOpts.index++;

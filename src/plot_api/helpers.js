@@ -196,8 +196,14 @@ function cleanAxRef(container, attr) {
     }
 }
 
-// Make a few changes to the data right away
-// before it gets used for anything
+/*
+ * cleanData: Make a few changes to the data right away
+ * before it gets used for anything
+ * Mostly for backward compatibility, modifies the data traces users provide.
+ *
+ * Important: if you're going to add something here that modifies a data array,
+ * update it in place so the new array === the old one.
+ */
 exports.cleanData = function(data, existingData) {
     // Enforce unique IDs
     var suids = [], // seen uids --- so we can weed out incoming repeats
@@ -283,7 +289,9 @@ exports.cleanData = function(data, existingData) {
 
         if(!Registry.traceIs(trace, 'pie') && !Registry.traceIs(trace, 'bar')) {
             if(Array.isArray(trace.textposition)) {
-                trace.textposition = trace.textposition.map(cleanTextPosition);
+                for(i = 0; i < trace.textposition.length; i++) {
+                    trace.textposition[i] = cleanTextPosition(trace.textposition[i]);
+                }
             }
             else if(trace.textposition) {
                 trace.textposition = cleanTextPosition(trace.textposition);
@@ -319,6 +327,32 @@ exports.cleanData = function(data, existingData) {
                     opts.highlightwidth = opts.highlightWidth;
                     delete opts.highlightWidth;
                 }
+            }
+        }
+
+        // fixes from converting finance from transforms to real trace types
+        if(trace.type === 'candlestick' || trace.type === 'ohlc') {
+            var increasingShowlegend = (trace.increasing || {}).showlegend !== false;
+            var decreasingShowlegend = (trace.decreasing || {}).showlegend !== false;
+            var increasingName = cleanFinanceDir(trace.increasing);
+            var decreasingName = cleanFinanceDir(trace.decreasing);
+
+            // now figure out something smart to do with the separate direction
+            // names we removed
+            if((increasingName !== false) && (decreasingName !== false)) {
+                // both sub-names existed: base name previously had no effect
+                // so ignore it and try to find a shared part of the sub-names
+
+                var newName = commonPrefix(
+                    increasingName, decreasingName,
+                    increasingShowlegend, decreasingShowlegend
+                );
+                // if no common part, leave whatever name was (or wasn't) there
+                if(newName) trace.name = newName;
+            }
+            else if((increasingName || decreasingName) && !trace.name) {
+                // one sub-name existed but not the base name - just use the sub-name
+                trace.name = increasingName || decreasingName;
             }
         }
 
@@ -379,6 +413,38 @@ exports.cleanData = function(data, existingData) {
         Color.clean(trace);
     }
 };
+
+function cleanFinanceDir(dirContainer) {
+    if(!Lib.isPlainObject(dirContainer)) return false;
+
+    var dirName = dirContainer.name;
+
+    delete dirContainer.name;
+    delete dirContainer.showlegend;
+
+    return (typeof dirName === 'string' || typeof dirName === 'number') && String(dirName);
+}
+
+function commonPrefix(name1, name2, show1, show2) {
+    // if only one is shown in the legend, use that
+    if(show1 && !show2) return name1;
+    if(show2 && !show1) return name2;
+
+    // if both or neither are in the legend, check if one is blank (or whitespace)
+    // and use the other one
+    // note that hover labels can still use the name even if the legend doesn't
+    if(!name1.trim()) return name2;
+    if(!name2.trim()) return name1;
+
+    var minLen = Math.min(name1.length, name2.length);
+    var i;
+    for(i = 0; i < minLen; i++) {
+        if(name1.charAt(i) !== name2.charAt(i)) break;
+    }
+
+    var out = name1.substr(0, i);
+    return out.trim();
+}
 
 // textposition - support partial attributes (ie just 'top')
 // and incorrect use of middle / center etc.
@@ -550,6 +616,15 @@ exports.clearAxisTypes = function(gd, traces, layoutUpdate) {
                     Lib.nestedProperty(gd.layout, typeAttr).set(null);
                 }
             }
+        }
+    }
+};
+
+exports.clearAxisAutomargins = function(gd) {
+    var keys = Object.keys(gd._fullLayout._pushmargin);
+    for(var i = 0; i < keys.length; i++) {
+        if(keys[i].indexOf('automargin') !== -1) {
+            delete gd._fullLayout._pushmargin[keys[i]];
         }
     }
 };

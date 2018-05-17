@@ -10,11 +10,11 @@ var createGraphDiv = require('../assets/create_graph_div');
 var destroyGraphDiv = require('../assets/destroy_graph_div');
 var fail = require('../assets/fail_test');
 var mouseEvent = require('../assets/mouse_event');
+var touchEvent = require('../assets/touch_event');
 var drag = require('../assets/drag');
 var selectButton = require('../assets/modebar_button');
 var delay = require('../assets/delay');
 var readPixel = require('../assets/read_pixel');
-
 
 function countCanvases() {
     return d3.selectAll('canvas').size();
@@ -39,7 +39,7 @@ describe('@gl Test removal of gl contexts', function() {
             expect(gd._fullLayout._plots.xy._scene).toBeDefined();
             Plots.cleanPlot([], {}, gd._fullData, gd._fullLayout);
 
-            expect(gd._fullLayout._plots.xy._scene).toBeUndefined();
+            expect(!!gd._fullLayout._plots.xy._scene).toBe(false);
         })
         .then(done);
     });
@@ -209,7 +209,6 @@ describe('@gl Test gl plot side effects', function() {
 
 describe('@gl Test gl2d plots', function() {
     var gd;
-
     var mock = require('@mocks/gl2d_10.json');
 
     beforeEach(function() {
@@ -249,15 +248,15 @@ describe('@gl Test gl2d plots', function() {
         });
     }
 
-    it('should respond to drag interactions', function(done) {
+    it('@flaky should respond to drag interactions', function(done) {
         var _mock = Lib.extendDeep({}, mock);
 
         var relayoutCallback = jasmine.createSpy('relayoutCallback');
 
         var originalX = [-0.3037383177570093, 5.303738317757009];
-        var originalY = [-0.5, 6.1];
-        var newX = [-0.5, 5];
-        var newY = [-1.7, 4.95];
+        var originalY = [-0.5806379476536665, 6.218528262566369];
+        var newX = [-0.5516431924882629, 5.082159624413145];
+        var newY = [-1.7947747709072441, 5.004391439312791];
         var precision = 1;
 
         Plotly.newPlot(gd, _mock)
@@ -283,10 +282,16 @@ describe('@gl Test gl2d plots', function() {
             gd.on('plotly_relayout', relayoutCallback);
         })
         .then(function() {
+            var scene = gd._fullLayout._plots.xy._scene;
+            spyOn(scene, 'draw');
+
             // Drag scene along the X axis
             return mouseTo([200, 200], [220, 200]);
         })
         .then(function() {
+            var scene = gd._fullLayout._plots.xy._scene;
+            expect(scene.draw).toHaveBeenCalledTimes(3);
+
             expect(gd.layout.xaxis.autorange).toBe(false);
             expect(gd.layout.yaxis.autorange).toBe(false);
             expect(gd.layout.xaxis.range).toBeCloseToArray(newX, precision);
@@ -349,7 +354,7 @@ describe('@gl Test gl2d plots', function() {
         .then(done);
     });
 
-    it('should be able to toggle visibility', function(done) {
+    it('@flaky should be able to toggle visibility', function(done) {
         var _mock = Lib.extendDeep({}, mock);
         _mock.data[0].line.width = 5;
 
@@ -375,6 +380,48 @@ describe('@gl Test gl2d plots', function() {
         })
         .then(function() {
             expect(readPixel(gd.querySelector('.gl-canvas-context'), 108, 100)[0]).not.toBe(0);
+        })
+        .catch(fail)
+        .then(done);
+    });
+
+    it('should be able to toggle trace with different modes', function(done) {
+        Plotly.newPlot(gd, [{
+            // a trace with all regl2d objects
+            type: 'scattergl',
+            y: [1, 2, 1],
+            error_x: {value: 10},
+            error_y: {value: 10},
+            fill: 'tozeroy'
+        }, {
+            type: 'scattergl',
+            mode: 'markers',
+            y: [0, 1, -1]
+        }])
+        .then(function() {
+            var scene = gd._fullLayout._plots.xy._scene;
+            spyOn(scene.fill2d, 'draw');
+            spyOn(scene.line2d, 'draw');
+            spyOn(scene.error2d, 'draw');
+            spyOn(scene.scatter2d, 'draw');
+
+            return Plotly.restyle(gd, 'visible', 'legendonly', [0]);
+        })
+        .then(function() {
+            var scene = gd._fullLayout._plots.xy._scene;
+            expect(scene.fill2d.draw).toHaveBeenCalledTimes(0);
+            expect(scene.line2d.draw).toHaveBeenCalledTimes(0);
+            expect(scene.error2d.draw).toHaveBeenCalledTimes(0);
+            expect(scene.scatter2d.draw).toHaveBeenCalledTimes(1);
+
+            return Plotly.restyle(gd, 'visible', true, [0]);
+        })
+        .then(function() {
+            var scene = gd._fullLayout._plots.xy._scene;
+            expect(scene.fill2d.draw).toHaveBeenCalledTimes(1);
+            expect(scene.line2d.draw).toHaveBeenCalledTimes(1);
+            expect(scene.error2d.draw).toHaveBeenCalledTimes(2, 'twice for x AND y');
+            expect(scene.scatter2d.draw).toHaveBeenCalledTimes(3, 'both traces have markers');
         })
         .catch(fail)
         .then(done);
@@ -471,7 +518,7 @@ describe('@gl Test gl2d plots', function() {
         .then(done);
     });
 
-    it('supports 1D and 2D Zoom', function(done) {
+    it('@flaky supports 1D and 2D Zoom', function(done) {
         var centerX;
         var centerY;
 
@@ -524,7 +571,7 @@ describe('@gl Test gl2d plots', function() {
         .then(done);
     });
 
-    it('supports axis constraints with zoom', function(done) {
+    it('@flaky supports axis constraints with zoom', function(done) {
         var centerX;
         var centerY;
 
@@ -584,14 +631,14 @@ describe('@gl Test gl2d plots', function() {
             });
         })
         .then(function() {
-            expect(gd.layout.xaxis.range).toBeCloseToArray([-7.6, 23.6], 1);
-            expect(gd.layout.yaxis.range).toBeCloseToArray([0.2, 15.8], 1);
+            expect(gd.layout.xaxis.range).toBeCloseToArray([-8.2, 24.2], 1);
+            expect(gd.layout.yaxis.range).toBeCloseToArray([-0.12, 16.1], 1);
         })
         .catch(fail)
         .then(done);
     });
 
-    it('should change plot type with incomplete data', function(done) {
+    it('@flaky should change plot type with incomplete data', function(done) {
         Plotly.plot(gd, [{}]);
         expect(function() {
             Plotly.restyle(gd, {type: 'scattergl', x: [[1]]}, 0);
@@ -604,7 +651,7 @@ describe('@gl Test gl2d plots', function() {
         done();
     });
 
-    it('data-referenced annotations should update on drag', function(done) {
+    it('@flaky data-referenced annotations should update on drag', function(done) {
         function assertAnnotation(xy) {
             var ann = d3.select('g.annotation-text-g').select('g');
             var translate = Drawing.getTranslate(ann);
@@ -642,6 +689,60 @@ describe('@gl Test gl2d plots', function() {
         })
         .then(function() {
             assertAnnotation([327, 331]);
+        })
+        .catch(fail)
+        .then(done);
+    });
+
+    it('@flaky should not scroll document while panning', function(done) {
+        var mock = {
+            data: [
+                { type: 'scattergl', y: [1, 2, 3], x: [1, 2, 3] }
+            ],
+            layout: {
+                width: 500,
+                height: 500
+            }
+        };
+
+        var sceneTarget, relayoutCallback = jasmine.createSpy('relayoutCallback');
+
+        function scroll(target, amt) {
+            return new Promise(function(resolve) {
+                target.dispatchEvent(new WheelEvent('wheel', {deltaY: amt || 1, cancelable: true}));
+                setTimeout(resolve, 0);
+            });
+        }
+
+        function touchDrag(target, start, end) {
+            return new Promise(function(resolve) {
+                touchEvent('touchstart', start[0], start[1], {element: target});
+                touchEvent('touchmove', end[0], end[1], {element: target});
+                touchEvent('touchend', end[0], end[1], {element: target});
+                setTimeout(resolve, 0);
+            });
+        }
+
+        function assertEvent(e) {
+            expect(e.defaultPrevented).toEqual(true);
+            relayoutCallback();
+        }
+
+        gd.addEventListener('touchstart', assertEvent);
+        gd.addEventListener('wheel', assertEvent);
+
+        Plotly.plot(gd, mock)
+        .then(function() {
+            sceneTarget = gd.querySelector('.nsewdrag');
+
+            return touchDrag(sceneTarget, [100, 100], [0, 0]);
+        })
+        .then(function() {
+            return scroll(sceneTarget);
+        })
+        .then(function() {
+            expect(relayoutCallback).toHaveBeenCalledTimes(1);
+
         })
         .catch(fail)
         .then(done);
@@ -708,13 +809,243 @@ describe('@gl Test gl2d plots', function() {
             var scene = gd._fullLayout._plots.xy._scene;
 
             expect(scene.count).toBe(2);
-            expect(scene.selectBatch).toBeDefined();
-            expect(scene.unselectBatch).toBeDefined();
+            expect(scene.selectBatch).toEqual([[0]]);
+            expect(scene.unselectBatch).toEqual([[]]);
             expect(scene.markerOptions.length).toBe(2);
             expect(scene.markerOptions[1].color).toEqual(new Uint8Array([255, 0, 0, 255]));
             expect(scene.scatter2d.draw).toHaveBeenCalled();
+
+            return Plotly.restyle(gd, 'selectedpoints', null);
+        })
+        .then(function() {
+            var scene = gd._fullLayout._plots.xy._scene;
+            var msg = 'clearing under dragmode select';
+
+            expect(scene.selectBatch).toEqual([], msg);
+            expect(scene.unselectBatch).toEqual([], msg);
+
+            // scattergl uses different pathways for select/lasso & zoom/pan
+            return Plotly.relayout(gd, 'dragmode', 'pan');
+        })
+        .then(function() {
+            var scene = gd._fullLayout._plots.xy._scene;
+            var msg = 'cleared under dragmode pan';
+
+            expect(scene.selectBatch).toEqual([], msg);
+            expect(scene.unselectBatch).toEqual([], msg);
+
+            return Plotly.restyle(gd, 'selectedpoints', [[1, 2], [0]]);
+        })
+        .then(function() {
+            var scene = gd._fullLayout._plots.xy._scene;
+            var msg = 'selecting via API under dragmode pan';
+
+            expect(scene.selectBatch).toEqual([[1, 2], [0]], msg);
+            expect(scene.unselectBatch).toEqual([[0], []], msg);
+
+            return Plotly.restyle(gd, 'selectedpoints', null);
+        })
+        .then(function() {
+            var scene = gd._fullLayout._plots.xy._scene;
+            var msg = 'clearing under dragmode pan';
+
+            expect(scene.selectBatch).toBe(null, msg);
+            expect(scene.unselectBatch).toBe(null, msg);
         })
         .catch(fail)
         .then(done);
+    });
+
+    it('@flaky should remove fill2d', function(done) {
+        var mock = require('@mocks/gl2d_axes_labels2.json');
+
+        Plotly.plot(gd, mock.data, mock.layout)
+        .then(delay(1000))
+        .then(function() {
+            expect(readPixel(gd.querySelector('.gl-canvas-context'), 100, 80)[0]).not.toBe(0);
+
+            return Plotly.restyle(gd, {fill: 'none'});
+        })
+        .then(function() {
+            expect(readPixel(gd.querySelector('.gl-canvas-context'), 100, 80)[0]).toBe(0);
+        })
+        .catch(fail)
+        .then(done);
+    });
+
+    it('should be able to draw more than 4096 colors', function(done) {
+        var x = [];
+        var color = [];
+        var N = 1e5;
+        var w = 500;
+        var h = 500;
+
+        Lib.seedPseudoRandom();
+
+        for(var i = 0; i < N; i++) {
+            x.push(i);
+            color.push(Lib.pseudoRandom());
+        }
+
+        Plotly.newPlot(gd, [{
+            type: 'scattergl',
+            mode: 'markers',
+            x: x,
+            y: color,
+            marker: {
+                color: color,
+                colorscale: [
+                    [0, 'rgb(255, 0, 0)'],
+                    [0.5, 'rgb(0, 255, 0)'],
+                    [1.0, 'rgb(0, 0, 255)']
+                ]
+            }
+        }], {
+            width: w,
+            height: h,
+            margin: {l: 0, t: 0, b: 0, r: 0}
+        })
+        .then(function() {
+            var total = readPixel(gd.querySelector('.gl-canvas-context'), 0, 0, w, h)
+                .reduce(function(acc, v) { return acc + v; }, 0);
+
+            // the total value was 3777134 before PR
+            // https://github.com/plotly/plotly.js/pull/2377
+            // and 105545275 after.
+            expect(total).toBeGreaterThan(4e6);
+        })
+        .catch(fail)
+        .then(done);
+    });
+
+    it('should work with typed array', function(done) {
+        Plotly.plot(gd, [{
+            type: 'scattergl',
+            mode: 'markers',
+            x: new Float32Array([1, 2, 3]),
+            y: new Float32Array([1, 2, 1]),
+            marker: {
+                size: 20,
+                colorscale: [[0, 'gray'], [1, 'red']],
+                cmin: 0,
+                cmax: 1,
+                showscale: true,
+                color: new Float32Array([0, 0.5, 1.0])
+            }
+        }])
+        .then(function() {
+            var opts = gd.calcdata[0][0].t._scene.markerOptions[0];
+
+            expect(opts.colors).toBeCloseTo2DArray([
+                [0.5, 0.5, 0.5, 1],
+                [0.75, 0.25, 0.25, 1],
+                [1, 0, 0, 1]
+            ]);
+
+            expect(opts.positions)
+                .toBeCloseToArray([1, 1, 2, 2, 3, 1]);
+        })
+        .catch(fail)
+        .then(done);
+    });
+});
+
+describe('Test scattergl autorange:', function() {
+    afterEach(destroyGraphDiv);
+
+    describe('should return the same value as SVG scatter for ~small~ data', function() {
+        var specs = [
+            {name: 'lines+markers', fig: require('@mocks/gl2d_10.json')},
+            {name: 'bubbles', fig: require('@mocks/gl2d_12.json')},
+            {name: 'line on log axes', fig: require('@mocks/gl2d_14.json')},
+            {name: 'fill to zero', fig: require('@mocks/gl2d_axes_labels2.json')},
+            {name: 'annotations', fig: require('@mocks/gl2d_annotations.json')}
+        ];
+
+        specs.forEach(function(s) {
+            it('- case ' + s.name, function(done) {
+                var gd = createGraphDiv();
+                var glRangeX;
+                var glRangeY;
+
+                // ensure the mocks have auto-range turned on
+                var glFig = Lib.extendDeep({}, s.fig);
+                Lib.extendDeep(glFig.layout, {xaxis: {autorange: true}});
+                Lib.extendDeep(glFig.layout, {yaxis: {autorange: true}});
+
+                var svgFig = Lib.extendDeep({}, glFig);
+                svgFig.data.forEach(function(t) { t.type = 'scatter'; });
+
+                Plotly.newPlot(gd, glFig).then(function() {
+                    glRangeX = gd._fullLayout.xaxis.range;
+                    glRangeY = gd._fullLayout.yaxis.range;
+                })
+                .then(function() {
+                    return Plotly.newPlot(gd, svgFig);
+                })
+                .then(function() {
+                    expect(gd._fullLayout.xaxis.range).toBeCloseToArray(glRangeX, 'x range');
+                    expect(gd._fullLayout.yaxis.range).toBeCloseToArray(glRangeY, 'y range');
+                })
+                .catch(fail)
+                .then(done);
+            });
+        });
+    });
+
+    describe('should return the approximative values for ~big~ data', function() {
+        beforeEach(function() {
+            spyOn(ScatterGl, 'plot');
+        });
+
+        // threshold for 'fast' axis expansion routine
+        var N = 1e5;
+        var x = new Array(N);
+        var y = new Array(N);
+        var ms = new Array(N);
+
+        Lib.seedPseudoRandom();
+
+        for(var i = 0; i < N; i++) {
+            x[i] = Lib.pseudoRandom();
+            y[i] = Lib.pseudoRandom();
+            ms[i] = 10 * Lib.pseudoRandom() + 20;
+        }
+
+        it('- case scalar marker.size', function(done) {
+            var gd = createGraphDiv();
+
+            Plotly.newPlot(gd, [{
+                type: 'scattergl',
+                mode: 'markers',
+                x: x,
+                y: y,
+                marker: {size: 10}
+            }])
+            .then(function() {
+                expect(gd._fullLayout.xaxis.range).toBeCloseToArray([-0.079, 1.079], 2, 'x range');
+                expect(gd._fullLayout.yaxis.range).toBeCloseToArray([-0.105, 1.105], 2, 'y range');
+            })
+            .catch(fail)
+            .then(done);
+        });
+
+        it('- case array marker.size', function(done) {
+            var gd = createGraphDiv();
+
+            Plotly.newPlot(gd, [{
+                type: 'scattergl',
+                mode: 'markers',
+                x: x,
+                y: y,
+                marker: {size: ms}
+            }])
+            .then(function() {
+                expect(gd._fullLayout.xaxis.range).toBeCloseToArray([-0.119, 1.119], 2, 'x range');
+                expect(gd._fullLayout.yaxis.range).toBeCloseToArray([-0.199, 1.199], 2, 'y range');
+            })
+            .catch(fail)
+            .then(done);
+        });
     });
 });

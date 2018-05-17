@@ -13,6 +13,15 @@ var fail = require('../assets/fail_test');
 var assertClip = customAssertions.assertClip;
 var assertNodeDisplay = customAssertions.assertNodeDisplay;
 
+var getOpacity = function(node) { return Number(node.style.opacity); };
+var getFillOpacity = function(node) { return Number(node.style['fill-opacity']); };
+var getColor = function(node) { return node.style.fill; };
+var getMarkerSize = function(node) {
+    // find path arc multiply by 2 to get the corresponding marker.size value
+    // (works for circles only)
+    return d3.select(node).attr('d').split('A')[1].split(',')[0] * 2;
+};
+
 describe('Test scatter', function() {
     'use strict';
 
@@ -68,6 +77,22 @@ describe('Test scatter', function() {
             };
             supplyDefaults(traceIn, traceOut, defaultColor, layout);
             expect(traceOut.visible).toBe(false);
+        });
+
+        [{letter: 'y', counter: 'x'}, {letter: 'x', counter: 'y'}].forEach(function(spec) {
+            var l = spec.letter;
+            var c = spec.counter;
+            var c0 = c + '0';
+            var dc = 'd' + c;
+            it('should be visible using ' + c0 + '/' + dc + ' if ' + c + ' is missing completely but ' + l + ' is present', function() {
+                traceIn = {};
+                traceIn[spec.letter] = [1, 2];
+                supplyDefaults(traceIn, traceOut, defaultColor, layout);
+                expect(traceOut.visible).toBe(undefined, l); // visible: true gets set above the module level
+                expect(traceOut._length).toBe(2, l);
+                expect(traceOut[c0]).toBe(0, c0);
+                expect(traceOut[dc]).toBe(1, dc);
+            });
         });
 
         it('should correctly assign \'hoveron\' default', function() {
@@ -757,6 +782,53 @@ describe('end-to-end scatter tests', function() {
         .catch(fail)
         .then(done);
     });
+
+    it('should work with typed arrays', function(done) {
+        function _assert(colors, sizes) {
+            var pts = d3.selectAll('.point');
+            expect(pts.size()).toBe(3, '# of pts');
+
+            pts.each(function(_, i) {
+                expect(getColor(this)).toBe(colors[i], 'color ' + i);
+                expect(getMarkerSize(this)).toBe(sizes[i], 'size ' + i);
+            });
+        }
+
+        Plotly.newPlot(gd, [{
+            x: new Float32Array([1, 2, 3]),
+            y: new Float32Array([1, 2, 1]),
+            marker: {
+                size: new Float32Array([20, 30, 10]),
+                color: new Float32Array([10, 30, 20]),
+                cmin: 10,
+                cmax: 30,
+                colorscale: [
+                    [0, 'rgb(255, 0, 0)'],
+                    [0.5, 'rgb(0, 255, 0)'],
+                    [1, 'rgb(0, 0, 255)']
+                ]
+            }
+        }])
+        .then(function() {
+            _assert(
+                ['rgb(255, 0, 0)', 'rgb(0, 0, 255)', 'rgb(0, 255, 0)'],
+                [20, 30, 10]
+            );
+
+            return Plotly.restyle(gd, {
+                'marker.size': [new Float32Array([40, 30, 20])],
+                'marker.color': [new Float32Array([20, 30, 10])]
+            });
+        })
+        .then(function() {
+            _assert(
+                ['rgb(0, 255, 0)', 'rgb(0, 0, 255)', 'rgb(255, 0, 0)'],
+                [40, 30, 20]
+            );
+        })
+        .catch(fail)
+        .then(done);
+    });
 });
 
 describe('scatter hoverPoints', function() {
@@ -837,37 +909,39 @@ describe('Test Scatter.style', function() {
 
     afterEach(destroyGraphDiv);
 
+    function assertPts(attr, getterFn, expectation, msg2) {
+        var selector = attr.indexOf('textfont') === 0 ? '.textpoint > text' : '.point';
+
+        d3.select(gd).selectAll('.trace').each(function(_, i) {
+            var pts = d3.select(this).selectAll(selector);
+            var expi = expectation[i];
+
+            expect(pts.size())
+                .toBe(expi.length, '# of pts for trace ' + i + msg2);
+
+            pts.each(function(_, j) {
+                var msg3 = ' for pt ' + j + ' in trace ' + i + msg2;
+                expect(getterFn(this)).toBe(expi[j], attr + msg3);
+            });
+        });
+    }
+
     function makeCheckFn(attr, getterFn) {
         return function(update, expectation, msg) {
-            var msg2 = ' (' + msg + ')';
             var promise = update ? Plotly.restyle(gd, update) : Promise.resolve();
-            var selector = attr.indexOf('textfont') === 0 ? '.textpoint > text' : '.point';
 
             return promise.then(function() {
-                d3.selectAll('.trace').each(function(_, i) {
-                    var pts = d3.select(this).selectAll(selector);
-                    var expi = expectation[i];
+                assertPts(attr, getterFn, expectation, ' (' + msg + ' after restyle)');
 
-                    expect(pts.size())
-                        .toBe(expi.length, '# of pts for trace ' + i + msg2);
-
-                    pts.each(function(_, j) {
-                        var msg3 = ' for pt ' + j + ' in trace ' + i + msg2;
-                        expect(getterFn(this)).toBe(expi[j], attr + msg3);
-                    });
+                // make sure styleOnSelect (called during selection)
+                // gives same results as restyle
+                gd.calcdata.forEach(function(cd) {
+                    Scatter.styleOnSelect(gd, cd);
                 });
+                assertPts(attr, getterFn, expectation, ' (' + msg + ' via Scatter.styleOnSelect)');
             });
         };
     }
-
-    var getOpacity = function(node) { return Number(node.style.opacity); };
-    var getFillOpacity = function(node) { return Number(node.style['fill-opacity']); };
-    var getColor = function(node) { return node.style.fill; };
-    var getMarkerSize = function(node) {
-        // find path arc multiply by 2 to get the corresponding marker.size value
-        // (works for circles only)
-        return d3.select(node).attr('d').split('A')[1].split(',')[0] * 2;
-    };
 
     var r = 'rgb(255, 0, 0)';
     var g = 'rgb(0, 255, 0)';
@@ -1184,13 +1258,27 @@ describe('Test scatter *clipnaxis*:', function() {
         // add lines
         fig.data[0].mode = 'markers+lines+text';
 
+        // add a non-scatter trace to make sure its module layer gets clipped
+        fig.data.push({
+            type: 'contour',
+            z: [[0, 0.5, 1], [0.5, 1, 3]]
+        });
+
+        function _assertClip(sel, exp, size, msg) {
+            if(exp === null) {
+                expect(sel.size()).toBe(0, msg + 'selection should not exist');
+            } else {
+                assertClip(sel, exp, size, msg);
+            }
+        }
+
         function _assert(layerClips, nodeDisplays, errorBarClips, lineClips) {
             var subplotLayer = d3.select('.plot');
             var scatterLayer = subplotLayer.select('.scatterlayer');
 
-            assertClip(subplotLayer, layerClips[0], 1, 'subplot layer');
-            assertClip(subplotLayer.select('.barlayer'), layerClips[1], 1, 'bar layer');
-            assertClip(scatterLayer, layerClips[2], 1, 'scatter layer');
+            _assertClip(subplotLayer, layerClips[0], 1, 'subplot layer');
+            _assertClip(subplotLayer.select('.contourlayer'), layerClips[1], 1, 'some other trace layer');
+            _assertClip(scatterLayer, layerClips[2], 1, 'scatter layer');
 
             assertNodeDisplay(
                 scatterLayer.selectAll('.point'),
@@ -1227,7 +1315,7 @@ describe('Test scatter *clipnaxis*:', function() {
         })
         .then(function() {
             _assert(
-                [true, false, false],
+                [true, null, null],
                 [],
                 [false, 0],
                 [false, 0]
@@ -1245,7 +1333,7 @@ describe('Test scatter *clipnaxis*:', function() {
         })
         .then(function() {
             _assert(
-                [true, false, false],
+                [true, null, null],
                 [],
                 [false, 0],
                 [false, 0]

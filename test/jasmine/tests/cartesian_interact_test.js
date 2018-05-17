@@ -14,6 +14,9 @@ var doubleClick = require('../assets/double_click');
 var getNodeCoords = require('../assets/get_node_coords');
 var delay = require('../assets/delay');
 
+var customAssertions = require('../assets/custom_assertions');
+var assertNodeDisplay = customAssertions.assertNodeDisplay;
+
 var MODEBAR_DELAY = 500;
 
 describe('zoom box element', function() {
@@ -62,49 +65,23 @@ describe('zoom box element', function() {
 
 
 describe('main plot pan', function() {
-
-    var mock = require('@mocks/10.json');
     var gd, modeBar, relayoutCallback;
 
-    beforeEach(function(done) {
+    beforeEach(function() {
         gd = createGraphDiv();
-
-        Plotly.plot(gd, mock.data, mock.layout).then(function() {
-
-            modeBar = gd._fullLayout._modeBar;
-            relayoutCallback = jasmine.createSpy('relayoutCallback');
-
-            gd.on('plotly_relayout', relayoutCallback);
-        })
-        .catch(failTest)
-        .then(done);
     });
 
     afterEach(destroyGraphDiv);
 
     it('should respond to pan interactions', function(done) {
-
+        var mock = require('@mocks/10.json');
         var precision = 5;
-
-        var buttonPan = selectButton(modeBar, 'pan2d');
 
         var originalX = [-0.6225, 5.5];
         var originalY = [-1.6340975059013805, 7.166241526218911];
 
         var newX = [-2.0255729166666665, 4.096927083333333];
         var newY = [-0.3769062155984817, 8.42343281652181];
-
-        expect(gd.layout.xaxis.range).toBeCloseToArray(originalX, precision);
-        expect(gd.layout.yaxis.range).toBeCloseToArray(originalY, precision);
-
-        // Switch to pan mode
-        expect(buttonPan.isActive()).toBe(false); // initially, zoom is active
-        buttonPan.click();
-        expect(buttonPan.isActive()).toBe(true); // switched on dragmode
-
-        // Switching mode must not change visible range
-        expect(gd.layout.xaxis.range).toBeCloseToArray(originalX, precision);
-        expect(gd.layout.yaxis.range).toBeCloseToArray(originalY, precision);
 
         function _drag(x0, y0, x1, y1) {
             mouseEvent('mousedown', x0, y0);
@@ -143,9 +120,27 @@ describe('main plot pan', function() {
             _checkAxes(xr0, yr0);
         }
 
-        delay(MODEBAR_DELAY)()
-        .then(function() {
+        Plotly.plot(gd, mock.data, mock.layout).then(function() {
+            modeBar = gd._fullLayout._modeBar;
+            relayoutCallback = jasmine.createSpy('relayoutCallback');
+            gd.on('plotly_relayout', relayoutCallback);
 
+            var buttonPan = selectButton(modeBar, 'pan2d');
+
+            expect(gd.layout.xaxis.range).toBeCloseToArray(originalX, precision);
+            expect(gd.layout.yaxis.range).toBeCloseToArray(originalY, precision);
+
+            // Switch to pan mode
+            expect(buttonPan.isActive()).toBe(false); // initially, zoom is active
+            buttonPan.click();
+            expect(buttonPan.isActive()).toBe(true); // switched on dragmode
+
+            // Switching mode must not change visible range
+            expect(gd.layout.xaxis.range).toBeCloseToArray(originalX, precision);
+            expect(gd.layout.yaxis.range).toBeCloseToArray(originalY, precision);
+        })
+        .then(delay(MODEBAR_DELAY))
+        .then(function() {
             expect(relayoutCallback).toHaveBeenCalledTimes(1);
             relayoutCallback.calls.reset();
             _runDrag(originalX, newX, originalY, newY);
@@ -186,6 +181,93 @@ describe('main plot pan', function() {
         .then(function() {
             // X and back; XY and back
             expect(relayoutCallback).toHaveBeenCalledTimes(6);
+        })
+        .catch(failTest)
+        .then(done);
+    });
+
+    it('should show/hide `cliponaxis: false` pts according to range', function(done) {
+        function _assert(markerDisplay, textDisplay, barTextDisplay) {
+            var gd3 = d3.select(gd);
+
+            assertNodeDisplay(
+                gd3.select('.scatterlayer').selectAll('.point'),
+                markerDisplay,
+                'marker pts'
+            );
+            assertNodeDisplay(
+                gd3.select('.scatterlayer').selectAll('.textpoint'),
+                textDisplay,
+                'text pts'
+            );
+            assertNodeDisplay(
+                gd3.select('.barlayer').selectAll('.bartext'),
+                barTextDisplay,
+                'bar text'
+            );
+        }
+
+        function _run(p0, p1, markerDisplay, textDisplay, barTextDisplay) {
+            mouseEvent('mousedown', p0[0], p0[1]);
+            mouseEvent('mousemove', p1[0], p1[1]);
+
+            _assert(markerDisplay, textDisplay, barTextDisplay);
+
+            mouseEvent('mouseup', p1[0], p1[1]);
+        }
+
+        Plotly.newPlot(gd, [{
+            mode: 'markers+text',
+            x: [1, 2, 3],
+            y: [1, 2, 3],
+            text: ['a', 'b', 'c'],
+            cliponaxis: false
+        }, {
+            type: 'bar',
+            x: [1, 2, 3],
+            y: [1, 2, 3],
+            text: ['a', 'b', 'c'],
+            textposition: 'outside',
+            cliponaxis: false
+        }], {
+            xaxis: {range: [0, 4]},
+            yaxis: {range: [0, 4]},
+            width: 500,
+            height: 500,
+            dragmode: 'pan'
+        })
+        .then(function() {
+            _assert(
+                [null, null, null],
+                [null, null, null],
+                [null, null, null]
+            );
+        })
+        .then(function() {
+            _run(
+                [250, 250], [250, 150],
+                [null, null, 'none'],
+                [null, null, 'none'],
+                [null, null, 'none']
+            );
+            expect(gd._fullLayout.yaxis.range[1]).toBeLessThan(3);
+        })
+        .then(function() {
+            _run(
+                [250, 250], [150, 250],
+                ['none', null, 'none'],
+                ['none', null, 'none'],
+                ['none', null, 'none']
+            );
+            expect(gd._fullLayout.xaxis.range[0]).toBeGreaterThan(1);
+        })
+        .then(function() {
+            _run(
+                [250, 250], [350, 350],
+                [null, null, null],
+                [null, null, null],
+                [null, null, null]
+            );
         })
         .catch(failTest)
         .then(done);
@@ -445,6 +527,63 @@ describe('axis zoom/pan and main plot zoom', function() {
         })
         .then(delay(constants.REDRAWDELAY + 10))
         .then(checkRanges({xaxis: [-0.1578, 1.8422], yaxis: [0.1052, 2.1052]}, 'scroll x'))
+        .catch(failTest)
+        .then(done);
+    });
+
+    it('updates linked axes when there are constraints (axes_scaleanchor mock)', function(done) {
+        var fig = Lib.extendDeep({}, require('@mocks/axes_scaleanchor.json'));
+
+        function _assert(y3rng, y4rng) {
+            expect(gd._fullLayout.yaxis3.range).toBeCloseToArray(y3rng, 2, 'y3 rng');
+            expect(gd._fullLayout.yaxis4.range).toBeCloseToArray(y4rng, 2, 'y3 rng');
+        }
+
+        Plotly.plot(gd, fig)
+        .then(function() {
+            _assert([-0.36, 4.36], [-0.36, 4.36]);
+        })
+        .then(doDrag('x2y3', 'nsew', 0, 100))
+        .then(function() {
+            _assert([-0.36, 2], [0.82, 3.18]);
+        })
+        .then(doDrag('x2y4', 'nsew', 0, 50))
+        .then(function() {
+            _assert([0.41, 1.23], [1.18, 2]);
+        })
+        .catch(failTest)
+        .then(done);
+    });
+
+    it('updates axis layout when the constraints require it', function(done) {
+        function _assert(xGridCnt) {
+            var xGrid = d3.select(gd).selectAll('.gridlayer > .x > path.xgrid');
+            expect(xGrid.size()).toEqual(xGridCnt);
+        }
+
+        Plotly.plot(gd, [{
+            x: [1, 1.5, 0, -1.5, -1, -1.5, 0, 1.5, 1],
+            y: [0, 1.5, 1, 1.5, 0, -1.5, -1, -1.5, 0],
+            line: {shape: 'spline'}
+        }], {
+            xaxis: {constrain: 'domain'},
+            yaxis: {scaleanchor: 'x'},
+            width: 700,
+            height: 500
+        })
+        .then(function() {
+            _assert(2);
+
+            return Plotly.relayout(gd, {
+                'xaxis.range[0]': 0,
+                'xaxis.range[1]': 1,
+                'yaxis.range[0]': 0,
+                'yaxis.range[1]': 1
+            });
+        })
+        .then(function() {
+            _assert(1);
+        })
         .catch(failTest)
         .then(done);
     });

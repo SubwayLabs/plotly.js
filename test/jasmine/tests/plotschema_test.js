@@ -115,7 +115,7 @@ describe('plot schema', function() {
                     var valObject = valObjects[attr.valType],
                         opts = valObject.requiredOpts
                             .concat(valObject.otherOpts)
-                            .concat(['valType', 'description', 'role', 'editType', 'impliedEdits']);
+                            .concat(['valType', 'description', 'role', 'editType', 'impliedEdits', '_compareAsJSON']);
 
                     Object.keys(attr).forEach(function(key) {
                         expect(opts.indexOf(key) !== -1).toBe(true, key, attr);
@@ -126,9 +126,15 @@ describe('plot schema', function() {
     });
 
     it('all subplot objects should contain _isSubplotObj', function() {
-        var IS_SUBPLOT_OBJ = '_isSubplotObj',
-            astrs = ['xaxis', 'yaxis', 'scene', 'geo', 'ternary', 'mapbox', 'polar'],
-            cnt = 0;
+        var IS_SUBPLOT_OBJ = '_isSubplotObj';
+        var cnt = 0;
+
+        var astrs = [
+            'xaxis', 'yaxis', 'scene', 'geo', 'ternary', 'mapbox', 'polar',
+            // not really a 'subplot' object but supports yaxis, yaxis2, yaxis3,
+            // ... counters, so list it here
+            'xaxis.rangeslider.yaxis'
+        ];
 
         // check if the subplot objects have '_isSubplotObj'
         astrs.forEach(function(astr) {
@@ -316,6 +322,41 @@ describe('plot schema', function() {
         expect(plotSchema.frames.role).toEqual('object');
         expect(plotSchema.frames.items.frames_entry).toBeDefined();
         expect(plotSchema.frames.items.frames_entry.role).toEqual('object');
+    });
+
+    it('should list trace-dependent & direction-dependent error bar attributes', function() {
+        var scatterSchema = plotSchema.traces.scatter.attributes;
+        expect(scatterSchema.error_x.copy_ystyle).toBeDefined();
+        expect(scatterSchema.error_x.copy_ystyle.editType).toBe('plot');
+        expect(scatterSchema.error_x.copy_zstyle).toBeUndefined();
+        expect(scatterSchema.error_y.copy_ystyle).toBeUndefined();
+        expect(scatterSchema.error_y.copy_zstyle).toBeUndefined();
+
+        var scatter3dSchema = plotSchema.traces.scatter3d.attributes;
+        expect(scatter3dSchema.error_x.copy_ystyle).toBeUndefined();
+        expect(scatter3dSchema.error_x.copy_zstyle).toBeDefined();
+        expect(scatter3dSchema.error_x.copy_zstyle.editType).toBe('calc');
+        expect(scatter3dSchema.error_y.copy_ystyle).toBeUndefined();
+        expect(scatter3dSchema.error_y.copy_zstyle).toBeDefined();
+        expect(scatter3dSchema.error_y.copy_zstyle.editType).toBe('calc');
+        expect(scatter3dSchema.error_z.copy_ystyle).toBeUndefined();
+        expect(scatter3dSchema.error_z.copy_zstyle).toBeUndefined();
+
+        var scatterglSchema = plotSchema.traces.scattergl.attributes;
+        expect(scatterglSchema.error_x.copy_ystyle).toBeDefined();
+        expect(scatterglSchema.error_x.copy_ystyle.editType).toBe('calc');
+        expect(scatterglSchema.error_x.copy_zstyle).toBeUndefined();
+        expect(scatterglSchema.error_y.copy_ystyle).toBeUndefined();
+        expect(scatterglSchema.error_y.copy_zstyle).toBeUndefined();
+    });
+
+    it('should convert regex valObject fields to strings', function() {
+        var splomAttrs = plotSchema.traces.splom.attributes;
+
+        expect(typeof splomAttrs.xaxes.items.regex).toBe('string');
+        expect(splomAttrs.xaxes.items.regex).toBe('/^x([2-9]|[1-9][0-9]+)?$/');
+        expect(typeof splomAttrs.yaxes.items.regex).toBe('string');
+        expect(splomAttrs.yaxes.items.regex).toBe('/^y([2-9]|[1-9][0-9]+)?$/');
     });
 });
 

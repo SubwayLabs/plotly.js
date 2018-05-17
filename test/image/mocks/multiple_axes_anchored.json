@@ -284,7 +284,8 @@
     },
     "xaxis": {
       "anchoroffset": true,
-      "title": "This needs to be here for now"
+      "title": "This needs to be here for now",
+      "automargin": true
     },
     "xaxis2": {
       "anchoroffset": true,
@@ -296,7 +297,8 @@
       },
       "tickfont": {
         "size": 30
-      }
+      },
+      "automargin": true
     },
     "xaxis3": {
       "anchoroffset": true,
@@ -308,7 +310,8 @@
       },
       "tickfont": {
         "size": 30
-      }
+      },
+      "automargin": true
     },
     "yaxis": {
       "anchoroffset": true,
@@ -319,7 +322,8 @@
       "titlefont": {
         "color": "#1f77b4"
       },
-      "title": "yaxis title"
+      "title": "yaxis title",
+      "automargin": true
     },
     "yaxis2": {
       "title": "yaxis2 title",
@@ -332,7 +336,8 @@
       "anchor": "x",
       "anchoroffset": true,
       "side": "left",
-      "overlaying": "y"
+      "overlaying": "y",
+      "automargin": true
     },
     "yaxis3": {
       "title": "yaxis3 title",
@@ -347,7 +352,8 @@
       "anchor": "x",
       "anchoroffset": true,
       "side": "right",
-      "overlaying": "y"
+      "overlaying": "y",
+      "automargin": true
     },
     "yaxis4": {
       "title": "yaxis4 title",
@@ -363,7 +369,8 @@
       "side": "right",
       "overlaying": "y",
       "autorange": "true",
-      "autorangemax": 555555
+      "autorangemax": 555555,
+      "automargin": true
     },
     "yaxis5": {
       "title": "yaxis5 title",
@@ -376,7 +383,8 @@
       "anchor": "x",
       "anchoroffset": true,
       "side": "right",
-      "overlaying": "y"
+      "overlaying": "y",
+      "automargin": true
     },
     "yaxis6": {
       "title": "yaxis6 title",
@@ -389,7 +397,8 @@
       "anchor": "x",
       "anchoroffset": true,
       "side": "left",
-      "overlaying": "y"
+      "overlaying": "y",
+      "automargin": true
     }
   }
 }
