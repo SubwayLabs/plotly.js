@@ -182,7 +182,12 @@ function doAutoRange(ax) {
 
     if(ax.autorange && hasDeps) {
         ax.range = getAutoRange(ax);
-
+        if (ax.autorangemin) {
+            ax.range[0] = ax.autorangemin;
+        }
+        if (ax.autorangemax) {
+            ax.range[1] = ax.autorangemax
+        }
         ax._r = ax.range.slice();
         ax._rl = Lib.simpleMap(ax._r, ax.r2l);
 
