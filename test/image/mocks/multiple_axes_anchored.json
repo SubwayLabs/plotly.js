@@ -41,6 +41,7 @@
         60000
       ],
       "name": "yaxis3 data",
+      "xaxis": "x2",
       "yaxis": "y3",
       "type": "scatter"
     },
@@ -86,7 +87,7 @@
         500000,
         600000
       ],
-      "name": "yaxis6 data",
+      "name": "yaxis6 data also as a rather long title, so it",
       "yaxis": "y4",
       "type": "scatter"
     },
@@ -252,7 +253,7 @@
         600000
       ],
       "name": "yaxis17 data",
-      "yaxis": "y4",
+      "yaxis": "y5",
       "type": "scatter"
     },
     {
@@ -267,20 +268,20 @@
         600000
       ],
       "name": "yaxis18 data",
-      "yaxis": "y4",
+      "yaxis": "y6",
       "type": "scatter"
     }
   ],
   "layout": {
     "title": "multiple y-axes example",
-    "width": 1200,
+    "width": 800,
     "height": 800,
     "legend": {
         "orientation": "h",
         "y": 0,
         "yanchor": "top",
         "xanchor": "left",
-        "maxHeight": 150
+        "maxHeight": 250
     },
     "xaxis": {
       "anchoroffset": true,
@@ -293,10 +294,10 @@
       "overlaying": "x",
       "anchor": "y",
       "titlefont": {
-        "size": 30
+        "size": 20
       },
       "tickfont": {
-        "size": 30
+        "size": 20
       },
       "automargin": true
     },
@@ -306,10 +307,10 @@
       "overlaying": "x",
       "anchor": "y",
       "titlefont": {
-        "size": 30
+        "size": 12
       },
       "tickfont": {
-        "size": 30
+        "size": 12
       },
       "automargin": true
     },
@@ -335,7 +336,7 @@
       },
       "anchor": "x",
       "anchoroffset": true,
-      "side": "left",
+      "side": "right",
       "overlaying": "y",
       "automargin": true
     },
@@ -366,7 +367,7 @@
       },
       "anchor": "x",
       "anchoroffset": true,
-      "side": "right",
+      "side": "left",
       "overlaying": "y",
       "autorange": "true",
       "autorangemax": 555555,
@@ -382,7 +383,7 @@
       },
       "anchor": "x",
       "anchoroffset": true,
-      "side": "right",
+      "side": "left",
       "overlaying": "y",
       "automargin": true
     },

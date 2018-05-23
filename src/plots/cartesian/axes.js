@@ -1929,12 +1929,54 @@ axes.doTicksSingle = function(gd, arg, skipTitle) {
                 // This is a bit of a hack to get the title element
                 var titleBox = fullLayout._infolayer.select('.g-' + ax._id + 'title').node().getBoundingClientRect();
 
+                var axLetter = axid.charAt(0);
+                var gs = gd._fullLayout._size;
+                var offsetBase = 1.5;
+                var fontSize = ax.titlefont.size;
+
+                var transform, counterAxis, x, y;
+
+                var titleStandoff = 10 + fontSize * offsetBase +
+                    (ax.linewidth ? ax.linewidth - 1 : 0);
+
+                if(axLetter === 'x') {
+                    counterAxis = (ax.anchor === 'free') ?
+                        {_offset: gs.t + (1 - (ax.position || 0)) * gs.h, _length: 0} :
+                        axisIds.getFromId(gd, ax.anchor);
+
+                    x = 0;
+
+                    if(ax.side === 'top') {
+                        y = -titleStandoff - fontSize * (ax.showticklabels ? 1 : 0);
+                    }
+                    else {
+                        y = titleStandoff +
+                            fontSize * (ax.showticklabels ? 1.5 : 0.5);
+                    }
+                }
+                else {
+                    counterAxis = (ax.anchor === 'free') ?
+                        {_offset: gs.l + (ax.position || 0) * gs.w, _length: 0} :
+                        axisIds.getFromId(gd, ax.anchor);
+
+                    y = 0;
+                    if(ax.side === 'right') {
+                        x = titleStandoff +
+                            fontSize * (ax.showticklabels ? 1 : 0.5);
+                    }
+                    else {
+                        x = -titleStandoff - fontSize * (ax.showticklabels ? 0.5 : 0);
+                    }
+                }
+
+
+
                 var axisBox = container.node().getBoundingClientRect();
                 var comboBox = {
-                    top: Math.min(titleBox.top, axisBox.top),
-                    bottom: Math.max(titleBox.bottom, axisBox.bottom),
-                    left: Math.min(titleBox.left, axisBox.left),
-                    right: Math.max(titleBox.right, axisBox.right)
+                    top: Math.min(axisBox.top + y, axisBox.top),
+                    bottom: Math.max(axisBox.bottom + y, axisBox.bottom),
+                    left: Math.min(axisBox.left + x, axisBox.left),
+                    right: Math.max(axisBox.right + x, axisBox.right)
                 };
                 comboBox.width = comboBox.right - comboBox.left;
                 comboBox.height = comboBox.bottom - comboBox.top;
@@ -2044,9 +2086,9 @@ axes.doTicksSingle = function(gd, arg, skipTitle) {
                 }
             }
 
-            if(ax.title !== fullLayout._dfltTitle[axLetter]) {
-                push[s] += ax.titlefont.size;
-            }
+            // if(ax.title !== fullLayout._dfltTitle[axLetter]) {
+            //     push[s] += ax.titlefont.size;
+            // }
 
             var pushKey = ax._name + '.automargin';
             var prevPush = fullLayout._pushmargin[pushKey];
@@ -2110,7 +2152,7 @@ axes.doTicksSingle = function(gd, arg, skipTitle) {
                     fontSize * (ax.showticklabels ? 1.5 : 0.5);
             }
             y += counterAxis._offset;
-
+            y += isNumeric(ax._anchorOffset) ? ax._anchorOffset : 0;
             if(!avoid.side) avoid.side = 'bottom';
         }
         else {
@@ -2292,7 +2334,7 @@ axes.doTicksSingle = function(gd, arg, skipTitle) {
             for(var i = 0; i < checkDepth; i++) {
                 if(priors[i]._anchorIndex === i) {
                     nextIndex = i + 1;
-                    nextOffset += priors[i]._boundingBox[offsetKey] + (ax.titlefont.size)
+                    nextOffset += priors[i]._boundingBox[offsetKey]
                 }
             }
             // Set the anchor index and offset for this axis, depending on the side

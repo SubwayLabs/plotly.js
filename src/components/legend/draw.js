@@ -177,14 +177,14 @@ module.exports = function draw(gd) {
         if (opts.x < 0.5) {
             anchorAxes.left.map(function (ax) {
                 if (ax._anchorOffset != null && ax._boundingBox) {
-                    opts._anchorShiftY = Math.max(opts._anchorShiftY, ax._anchorOffset + ax._boundingBox.width)
+                    opts._anchorShiftX = Math.max(opts._anchorShiftX, ax._anchorOffset + ax._boundingBox.width)
                 }
             })
         }
         else {
             anchorAxes.right.map(function (ax) {
                 if (ax._anchorOffset != null && ax._boundingBox) {
-                    opts._anchorShiftY = Math.min(opts._anchorShiftY, ax._anchorOffset - ax._boundingBox.width)
+                    opts._anchorShiftX = Math.min(opts._anchorShiftX, ax._anchorOffset - ax._boundingBox.width)
                 }
             })
         }
@@ -208,7 +208,7 @@ module.exports = function draw(gd) {
     // It requires the legend width, height, x and y to position the scrollbox
     // and these values are mutated in repositionLegend.
     var gs = fullLayout._size,
-        lx = gs.l + gs.w * opts.x,
+        lx = 80,//gs.l + gs.w * opts.x,
         ly = gs.t + gs.h * (1 - opts.y);
 
     if(anchorUtils.isRightAnchor(opts)) {
@@ -227,10 +227,10 @@ module.exports = function draw(gd) {
 
     // Make sure the legend left and right sides are visible
     var legendWidth = opts._width,
-        legendWidthMax = gs.w;
+        legendWidthMax = lxMax;
 
     if(legendWidth > legendWidthMax) {
-        lx = gs.l;
+        lx = 80;//gs.l;
         legendWidth = legendWidthMax;
     }
     else {
@@ -246,15 +246,20 @@ module.exports = function draw(gd) {
         legendHeightMax = gs.h;
 
     if(legendHeight > legendHeightMax) {
-        ly = gs.t;
+        // ly = gs.t;
         legendHeight = legendHeightMax;
     }
     else {
-        if(ly + legendHeight > lyMax) ly = lyMax - legendHeight;
+        // if(ly + legendHeight > lyMax) ly = lyMax - legendHeight;
         if(ly < lyMin) ly = lyMin;
         legendHeight = Math.min(lyMax - ly, opts._height, opts.maxHeight);
     }
 
+
+    opts._adjustedPosition = {
+        x: lx,
+        y: ly
+    }
     // Set size and position of all the elements that make up a legend:
     // legend, background and border, scroll box and scroll bar
     Drawing.setTranslate(legend, lx + opts._anchorShiftX, ly + opts._anchorShiftY);
@@ -771,14 +776,15 @@ function expandMargin(gd) {
     }
 
     // lastly check if the margin auto-expand has changed
-    Plots.autoMargin(gd, 'legend', {
+    var inspect = {
         x: opts.x,
-        y: opts.y,
-        l: (opts._width + Math.abs(opts._anchorShiftX)) * (FROM_TL[xanchor]),
-        r: (opts._width + Math.abs(opts._anchorShiftX)) * (FROM_BR[xanchor]),
-        b: (opts._height + Math.abs(opts._anchorShiftY)) * (FROM_BR[yanchor]),
-        t: (opts._height + Math.abs(opts._anchorShiftY)) * (FROM_TL[yanchor])
-    });
+        y: opts.y - (opts._anchorShiftY / fullLayout._size.h) - 0.1,
+        l: opts._width * (FROM_TL[xanchor]),
+        r: opts._width * (FROM_BR[xanchor]),
+        b: (clipHeight * (FROM_BR[yanchor])),
+        t: clipHeight * (FROM_TL[yanchor])
+    }
+    Plots.autoMargin(gd, 'legend', inspect);
 }
 
 function expandHorizontalMargin(gd) {
