@@ -252,8 +252,8 @@ module.exports = function draw(gd) {
     else {
         // if(ly + legendHeight > lyMax) ly = lyMax - legendHeight;
         if(ly < lyMin) ly = lyMin;
-        legendHeight = Math.min(lyMax - ly, opts._height, opts.maxHeight);
     }
+    legendHeight = Math.min(lyMax - ly, opts._height, opts.maxHeight);
 
 
     opts._adjustedPosition = {
@@ -778,10 +778,10 @@ function expandMargin(gd) {
     // lastly check if the margin auto-expand has changed
     var inspect = {
         x: opts.x,
-        y: opts.y - (opts._anchorShiftY / fullLayout._size.h) - 0.1,
+        y: opts.y - (opts._anchorShiftY / (fullLayout._size.h)),
         l: opts._width * (FROM_TL[xanchor]),
         r: opts._width * (FROM_BR[xanchor]),
-        b: (clipHeight * (FROM_BR[yanchor])),
+        b: clipHeight * (FROM_BR[yanchor]),
         t: clipHeight * (FROM_TL[yanchor])
     }
     Plots.autoMargin(gd, 'legend', inspect);

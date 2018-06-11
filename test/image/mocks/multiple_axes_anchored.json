@@ -41,7 +41,6 @@
         60000
       ],
       "name": "yaxis3 data",
-      "xaxis": "x2",
       "yaxis": "y3",
       "type": "scatter"
     },
@@ -56,8 +55,7 @@
         500000,
         600000
       ],
-      "name": "yaxis4 data has a rather long title to take up space, and it can ",
-      "xaxis": "x2",
+      "name": "yaxis4 data has a rather long title that just keeps going and going and ngoing",
       "yaxis": "y4",
       "type": "scatter"
     },
@@ -87,7 +85,7 @@
         500000,
         600000
       ],
-      "name": "yaxis6 data also as a rather long title, so it",
+      "name": "yaxis6 data also as a rather long",
       "yaxis": "y4",
       "type": "scatter"
     },
@@ -267,15 +265,15 @@
         500000,
         600000
       ],
-      "name": "yaxis18 data",
+      "name": "yaxis18 data last",
       "yaxis": "y6",
       "type": "scatter"
     }
   ],
   "layout": {
     "title": "multiple y-axes example",
-    "width": 800,
-    "height": 800,
+    "width": 1200,
+    "height": 600,
     "legend": {
         "orientation": "h",
         "y": 0,
