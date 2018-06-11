@@ -36686,6 +36686,24 @@
                     "editType": "none",
                     "description": "Sets the hover text formatting rule using d3 formatting mini-languages which are very similar to those in Python. For numbers, see: https://github.com/d3/d3-format/blob/master/README.md#locale_format And for dates see: https://github.com/d3/d3-time-format/blob/master/README.md#locale_format We add one item to d3's date formatter: *%{n}f* for fractional seconds with n digits. For example, *2016-10-13 09:15:23.456* with tickformat *%H~%M~%S.%2f* would display *09~15~23.46*"
                 },
+                "numberformatter": {
+                    "valType": "any",
+                    "dflt": null,
+                    "role": "style",
+                    "description": "Supply a custom formatting function for numeric tick labels on linear and log plots"
+                },
+                "autorangemin": {
+                    "valType": "number",
+                    "dflt": null,
+                    "role": "style",
+                    "description": "Fix a minimum to use on one sided autoranges for cartesian plots"
+                },
+                "autorangemax": {
+                    "valType": "number",
+                    "dflt": null,
+                    "role": "style",
+                    "description": "Fix a maximum to use on one sided autoranges for cartesian plots"
+                },
                 "showline": {
                     "valType": "boolean",
                     "dflt": false,
@@ -36759,6 +36777,11 @@
                     "role": "info",
                     "editType": "plot+margins",
                     "description": "If set to an opposite-letter axis id (e.g. `x2`, `y`), this axis is bound to the corresponding opposite-letter axis. If set to *free*, this axis' position is determined by `position`."
+                },
+                "anchoroffset": {
+                    "valType": "boolean",
+                    "role": "info",
+                    "description": "If set to true and an anchor is present, the axis will be offset by any previous axes that share the same letter axis and side."
                 },
                 "side": {
                     "valType": "enumerated",
@@ -37645,6 +37668,24 @@
                     "editType": "none",
                     "description": "Sets the hover text formatting rule using d3 formatting mini-languages which are very similar to those in Python. For numbers, see: https://github.com/d3/d3-format/blob/master/README.md#locale_format And for dates see: https://github.com/d3/d3-time-format/blob/master/README.md#locale_format We add one item to d3's date formatter: *%{n}f* for fractional seconds with n digits. For example, *2016-10-13 09:15:23.456* with tickformat *%H~%M~%S.%2f* would display *09~15~23.46*"
                 },
+                "numberformatter": {
+                    "valType": "any",
+                    "dflt": null,
+                    "role": "style",
+                    "description": "Supply a custom formatting function for numeric tick labels on linear and log plots"
+                },
+                "autorangemin": {
+                    "valType": "number",
+                    "dflt": null,
+                    "role": "style",
+                    "description": "Fix a minimum to use on one sided autoranges for cartesian plots"
+                },
+                "autorangemax": {
+                    "valType": "number",
+                    "dflt": null,
+                    "role": "style",
+                    "description": "Fix a maximum to use on one sided autoranges for cartesian plots"
+                },
                 "showline": {
                     "valType": "boolean",
                     "dflt": false,
@@ -37718,6 +37759,11 @@
                     "role": "info",
                     "editType": "plot+margins",
                     "description": "If set to an opposite-letter axis id (e.g. `x2`, `y`), this axis is bound to the corresponding opposite-letter axis. If set to *free*, this axis' position is determined by `position`."
+                },
+                "anchoroffset": {
+                    "valType": "boolean",
+                    "role": "info",
+                    "description": "If set to true and an anchor is present, the axis will be offset by any previous axes that share the same letter axis and side."
                 },
                 "side": {
                     "valType": "enumerated",
@@ -43328,6 +43374,11 @@
                     "role": "info",
                     "editType": "legend",
                     "description": "Sets the legend's vertical position anchor This anchor binds the `y` position to the *top*, *middle* or *bottom* of the legend."
+                },
+                "maxHeight": {
+                    "valType": "number",
+                    "role": "style",
+                    "description": "Sets the maximum allowed height (in pixels) of the legend."
                 },
                 "editType": "legend",
                 "role": "object"
